@@ -14,7 +14,7 @@ class BaseReward:
         self.position = -1
         self.capacity = 100
 
-    def push(self,x):
+    def push(self, x):
         if len(self.state_buffer) < self.capacity:
             self.state_buffer.append(None)
         self.position = (self.position+1) % self.capacity

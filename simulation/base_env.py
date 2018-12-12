@@ -1,14 +1,9 @@
+import copy
 import pprint
-import os
-import pandas as pd
 
-from gym import error, spaces
 from gym.utils import seeding
 import numpy as np
-from os import path
-import gym
-import six
-from rewards.demo_reward import DemoReward
+from common.rewards.demo_reward import DemoReward
 from simulation import utils
 
 
@@ -21,36 +16,43 @@ class BaseEnv():
                  y_low=None, u_low=None,
                  d_low=None, c_low=None,
                  y_high=None, u_high=None,
-                 d_high=None, c_high=None
+                 d_high=None, c_high=None,
+                 normalize=True,
+                 render_mode=False
                  ):
         # time step
         self.dt = dt
-        # goal of y
-        self.y_star = None
-        # y --- core indices
-        self.y = None
-
-        # control input
-        self.u = None
-
-        # measurable parameters
-        self.c = None
-
-        # unmeasurable parameters
-        self.d = None
         self.np_random = None
         self.reward = 0
         self.done = False
+        self.render_mode = render_mode
         if size_yudc is None:
             raise Exception('No size_yudc!')
 
         self.size_yudc = size_yudc
+
+        # goal of y
+        self.y_star = np.zeros(self.size_yudc[0])
+        # y --- core indices
+        self.y = np.zeros(self.size_yudc[0])
+
+        # control input
+        self.u = np.zeros(self.size_yudc[1])
+
+        # unmeasurable parameters
+        self.d = np.zeros(self.size_yudc[2])
+
+        # measurable parameters
+        self.c = np.zeros(self.size_yudc[3])
+
+
 
         # 定义参量边界
         self.y_bounds = None
         self.u_bounds = None
         self.d_bounds = None
         self.c_bounds = None
+
 
         # set bounds for yudc
         self.set_y(self.size_yudc[0], y_low, y_high)
@@ -63,11 +65,21 @@ class BaseEnv():
             reward_calculator = DemoReward()
         self.reward_calculator = reward_calculator
 
+        self.normalize = normalize
+        self.external_u_bounds = np.copy(self.u_bounds)
+        if self.normalize:
+            self.external_u_bounds[:, 0] = -1*np.ones(self.size_yudc[1])
+            self.external_u_bounds[:, 1] = np.ones(self.size_yudc[1])
+
         # store log
-        self.log = []
+        self.log = {}
 
     @staticmethod
     def set_bound(size, low, high, kind='Unkown'):
+        if type(low) is list:
+            low = np.array(low)
+        if type(high) is list:
+            high = np.array(high)
         if low is None:
             low = np.ones(size)*np.inf*-1
         if high is None:
@@ -103,11 +115,11 @@ class BaseEnv():
         low = bounds[:, 0]
         high = bounds[:, 1]
         res = np.clip(x, low, high)
-        if (res == low).sum() >= 1:
-            self.log.append("Too low for %s" % item_name)
+        if (res < low).sum() >= 1:
+            self.add_log("Bound %s"%item_name, "Too low")
             return -1, 'Too low', res
-        if (res == high).sum() >= 1:
-            self.log.append("Too large for %s" % item_name)
+        if (res > high).sum() >= 1:
+            self.add_log("Bound %s"%item_name, "Too large")
             return 1, 'Too high', res
         return 0, 'Normal', res
 
@@ -131,6 +143,28 @@ class BaseEnv():
 
     def reset_d(self):
         return np.array([])
+    # ----------------------------------------------------------
+
+
+
+    # ----------------------------------------------------------
+    # Normalize action
+    """
+    Input control u is in a range between (-1*np.ones(),np.ones())
+    The Normalization could scale u between (u_bounds[:,0],u_bounds[:,1])
+    """
+    def normalize_actions(self, u):
+        if (u > 1.0).sum() > 0 or (u < -1.0).sum() > 0:
+            raise ValueError("u before normalization exceeds (-1,1)")
+        low = self.u_bounds[:, 0]
+        high = self.u_bounds[:, 1]
+
+        action = low +(u + 1.0) * 0.5 * (high-low)
+
+        action = np.clip(action, low, high)
+
+        return action
+
     # ----------------------------------------------------------
 
     def _reset_y(self):
@@ -178,7 +212,7 @@ class BaseEnv():
 
     def _reset_c(self):
         c = self.reset_c()
-        if len(c)!=self.size_yudc[3]:
+        if len(c) != self.size_yudc[3]:
             raise ValueError('Shape for c is wrong')
         bound_res = self.bound_detect(c, self.c_bounds, item_name='reset c')
         c = bound_res[2]
@@ -197,6 +231,7 @@ class BaseEnv():
         self._reset_u()
         self._reset_d()
         self._reset_c()
+        return self.observation()
 
     def solve_u(self, u):
         bound_res_u = self.bound_detect(u, self.u_bounds,item_name='simulation u')
@@ -213,24 +248,33 @@ class BaseEnv():
 
     def render(self):
 
+        print('-----------Env--------------')
         dic = {
             "y_star": self.y_star,
-            "y": self.y,
+            "y_new": self.y,
             "u": self.u,
             "d": self.d,
             "c": self.c,
             "reward": self.reward,
             "done": self.done,
-            "log": self.log
         }
-        pprint.pprint(dic)
+        self.log.update(dic)
+
+        pprint.pprint(self.log)
         print('----------------------------')
 
         return None
 
-    def step(self, new_u):
+    def step(self, new_u=None):
+        if new_u is None:
+            new_u = self.u
+        self.log = {}
+        self.add_log("u normal",new_u)
+        if self.normalize is True:
+            new_u = self.normalize_actions(new_u)
         # clean log
-        self.log = []
+        self.add_log("u action",new_u)
+        self.add_log("y old", self.y)
         self.done = False
         self.reward = 0
 
@@ -242,6 +286,9 @@ class BaseEnv():
 
         # calculate the reward according to reward calculator
         self.reward = self.reward_calculator.cal(self.y_star, self.y, self.u, self.c, self.d)
+
+        if self.render_mode is True:
+            self.render()
 
         return self.observation(), self.reward, self.done, None
 
@@ -262,10 +309,13 @@ class BaseEnv():
 
             if bound_res_y[0] is not 0:
                 #print('Indices are %s' % bound_res_y[1])
-                done = True
+                #done = True
+                done = False
                 break
-
         return done
+
+    def observation_size(self):
+        return len(self.observation())
 
     def f(self, y, u, c, d):
         """
@@ -274,6 +324,9 @@ class BaseEnv():
         """
         return (y,u,c,d)
         #raise NotImplementedError
+    def add_log(self, key, value):
+        self.log[key] = copy.deepcopy(value)
+
 
 
 
