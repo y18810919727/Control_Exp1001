@@ -23,7 +23,8 @@ class BaseEnv():
                  render_mode=False,
                  terminate_state = False,
                  time_length=1.0,
-                 one_step_length=0.001
+                 one_step_length=0.001,
+                 y_name=None
                  ):
         # time step
         self.dt = dt
@@ -84,6 +85,10 @@ class BaseEnv():
 
         self.time_length = time_length
         self.one_step_length = one_step_length
+
+        if y_name is None:
+            y_name = [str(i) for i in range(self.size_yudc[0])]
+        self.y_name = y_name
 
     @staticmethod
     def set_bound(size, low, high, kind='Unkown'):

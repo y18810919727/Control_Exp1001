@@ -14,14 +14,8 @@
 
 直接pip下载：
 
-```shell
-pip install -i https://test.pypi.org/simple/ Control-Exp1001
 ```
-
-Mac用户
-
-```sh
-python3 -m pip install --index-url https://test.pypi.org/simple/ Control_Exp1001
+python3 -m pip install --index-url https://test.pypi.org/simple/Control_Exp1001
 ```
 
 验证

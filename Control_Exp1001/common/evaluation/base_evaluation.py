@@ -73,8 +73,12 @@ class EvaluationBase():
                 print("%s peformed %f in eval round %i" % (self.exp_name[exp_id], np.sum(eval_reward_list[exp_id, round_id,:]), round_id))
             figure = plt.figure(**self.eval_plt_param)
 
-            # -1是为了减去最后的那次评估
-            figure.suptitle("After %i training tounds" % (round_id*self.training_rounds/(rounds-1)))
+            if rounds > 1:
+                # -1是为了减去最后的那次评估
+                figure.suptitle("After %i training tounds" % (round_id*self.training_rounds/(rounds-1)))
+            else:
+                figure.suptitle("After %i training tounds" % 0)
+
             #figure.suptitle("Training Rounds %i" % (round_id*self.training_rounds/(rounds-1)),fontsize=16,x=0.53,y=1.05)
             #plt.title("Training Rounds %i" % round_id)
             # A set of curves for one y
