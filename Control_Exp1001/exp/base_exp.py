@@ -9,7 +9,7 @@ class BaseExp:
                  max_frame=100000,
                  rounds=100,
                  max_step=1000,
-                 eval_rounds=10,
+                 eval_rounds=0,
                  eval_length=None,
                  exp_name=None):
         """
@@ -71,6 +71,12 @@ class BaseExp:
         y_star_list = []
         y_list = []
         reward_list = []
+
+        # 记录最初状态
+        y_star_list.append(self.env.y_star[np.newaxis, :])
+        # 记录控制结果
+        y_list.append(self.env.y[np.newaxis, :])
+
         for _ in range(self.eval_length):
             # 生成控制指令
             action = self.controller.act(s)
@@ -155,8 +161,12 @@ class BaseExp:
                 break
 
         # 全部训练完，再评估一次
+        if self.rounds == 0 :
+            eval_t = 0
+        else:
+            eval_t = self.rounds/eval_cycle
         eval_res = self.evaluate(
-            int(self.rounds/eval_cycle)
+            eval_t
         )
         eval_list.append(
             eval_res[0]
@@ -166,15 +176,5 @@ class BaseExp:
             eval_res[1]
         )
         return rewards, eval_list, eval_reward_list
-
-
-
-
-
-
-
-
-
-
 
 

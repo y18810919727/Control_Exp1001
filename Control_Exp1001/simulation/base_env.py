@@ -21,7 +21,9 @@ class BaseEnv():
                  d_high=None, c_high=None,
                  normalize=True,
                  render_mode=False,
-                 terminate_state = False
+                 terminate_state = False,
+                 time_length=1.0,
+                 one_step_length=0.001
                  ):
         # time step
         self.dt = dt
@@ -79,6 +81,9 @@ class BaseEnv():
 
         # store log
         self.log = {}
+
+        self.time_length = time_length
+        self.one_step_length = one_step_length
 
     @staticmethod
     def set_bound(size, low, high, kind='Unkown'):
@@ -231,12 +236,14 @@ class BaseEnv():
         pass
 
     def reset(self):
+
+
         self._reset()
-        self._reset_y()
-        self._reset_y_star()
-        self._reset_u()
         self._reset_d()
         self._reset_c()
+        self._reset_u()
+        self._reset_y()
+        self._reset_y_star()
         return self.observation()
 
     def solve_u(self, u):

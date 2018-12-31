@@ -158,11 +158,17 @@ best peformed -797.201223 in eval round 5
 
 - 奖赏变化
 
-![myplot11](README.assets/myplot11-5308206.jpg )
+<img width=600px src="README.assets/myplot11-5308206.jpg">
 
 - 控制效果图: 这样的图有六个
 
-![myplot5](README.assets/myplot5.jpg)
+  <img width=600px src="README.assets/myplot5.jpg">
+
+
+
+
+
+
 
 
 
