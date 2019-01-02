@@ -31,16 +31,16 @@ class Flotation(BaseEnv):
             one_step_length=one_step_length,
             y_name=y_name
         )
-        self.ke = np.array([65.6,316], dtype=float)
-        self.kp = np.array([17.9,0.04], dtype=float)
-        self.gcp = np.array([0.417, 0.0034], dtype=float)
-        self.ga = 0.0234
-        self.A = 53.2
-        self.H = 3.2
-        self.Lcu = 42
-        self.qT = 9.3
-        self.qc = 20
-        self.Xa = np.array([0,0],dtype=float)
+        self.ke = np.array([65.6,316], dtype=float)  # Drainage rate
+        self.kp = np.array([17.9,0.04], dtype=float)  # flotation rate
+        self.gcp = np.array([0.417, 0.0034], dtype=float)  #
+        self.ga = 0.0234  # feed mineral grade
+        self.A = 53.2 # sectional area
+        self.H = 3.2  # total height
+        self.Lcu = 42  #
+        self.qT = 9.3  # tail flow
+        self.qc = 20  #
+        self.Xa = np.array([0,0],dtype=float)  # mineral grade
         self.Xa[0] = 0.4
         self.Xa[1] = (self.gcp[0]-self.ga)/(self.ga-self.gcp[1]) * self.Xa[0]
 
@@ -48,18 +48,16 @@ class Flotation(BaseEnv):
         return np.array([1,10],dtype=float)
 
     def reset_y(self):
-        Mp = self.c[:2]
-        Me = self.c[2:]
-        lcg = np.sum(self.gcp * Me) * self.Lcu / (np.sum(Me))
-        ltg = np.sum(self.gcp * Mp) * self.Lcu / (np.sum(Mp))
+        Mp = self.c[:2]  # pulp mass
+        Me = self.c[2:]  # froth mass
+        lcg = np.sum(self.gcp * Me) * self.Lcu / (np.sum(Me))  # general concentrate grade
+        ltg = np.sum(self.gcp * Mp) * self.Lcu / (np.sum(Mp))  # general tail grade
         #ny = np.array([lcg, ltg], dtype=float)
         ny = np.hstack([lcg, ltg])
         return ny
 
     def reset_c(self):
 
-        #c = np.array([16.8, 1123, 8.3, 0.2],dtype=float)
-        # 变成[1.5, 17] 情况下的稳态
         c = np.array([28.12, 780, 7.36, 0.098], dtype=float)
         #c = np.array([16.8, 1123, 4.56, 0.2],dtype=float)
         return c
@@ -68,6 +66,9 @@ class Flotation(BaseEnv):
         #return np.array([17.34, 0.75],dtype=float)
         #return np.array([16.8, 1123, 4.3, 0.12], dtype=float)
         return np.array([17.20, 0.60], dtype=float)
+
+    def observation(self):
+        return np.hstack([self.y_star, self.y, self.u])
 
     def f(self, y, u, c, d):
 
@@ -90,6 +91,15 @@ class Flotation(BaseEnv):
         ny = np.array([lcg, ltg], dtype=float)
 
         return ny, u, nc, d
+
+    @classmethod
+    def flotation_test(cls):
+        simulation_test(Flotation, mode="const",
+                        const_u=[[1, 17], [1.5, 17], [2, 3], [2, 20], [2.5, 17]], seprate_num=3,
+                        test_step=100, eval_plt_param={"figsize": (15, 10)})
+        simulation_test(Flotation, mode="random", test_step=100, eval_plt_param={"figsize": (15, 10)})
+
+        simulation_test(Flotation, mode="uniform", seprate_num=3, test_step=100, eval_plt_param={"figsize": (15, 10)})
 
 if __name__ == '__main__':
     simulation_test(Flotation, mode="const",

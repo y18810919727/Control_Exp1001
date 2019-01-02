@@ -9,7 +9,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="Control_Exp1001",
-    version="0.0.5",
+    version="0.0.6",
     author="Zhaolin Yuan",
     author_email="b20170324@xs.ustb.edu.cn",
     description="A highly integrated platform for controlling experiments in 1001 ",

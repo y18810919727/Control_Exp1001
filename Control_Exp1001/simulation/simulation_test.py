@@ -45,7 +45,7 @@ def simulation_test(Env=None, mode="uniform",init_para=None,
     if init_para is None:
         init_para = {}
     tmp_env = Env(**init_para)
-    u_bounds = tmp_env.u_bounds
+    u_bounds = tmp_env.external_u_bounds
 
     low = u_bounds[:, 0]
     high = u_bounds[:, 1]
@@ -92,7 +92,7 @@ def simulation_test(Env=None, mode="uniform",init_para=None,
     evaluation = EvaluationBase(res_list=res_list, training_rounds=0,
                                 y_name=y_name, exp_name=act_name, y_num=tmp_env.size_yudc[0],
                                 eval_plt_param=eval_plt_param)
-    evaluation.draw_eval()
+    evaluation.draw_eval(draw_title=False)
 
 
 

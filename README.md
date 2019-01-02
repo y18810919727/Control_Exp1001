@@ -15,7 +15,10 @@
 直接pip下载：
 
 ```
-python3 -m pip install --index-url https://test.pypi.org/simple/Control_Exp1001
+# 下载
+python3 -m pip install --index-url https://test.pypi.org/simple/ Control_Exp1001
+# 更新
+python3 -m pip install --upgrade --index-url https://test.pypi.org/simple/ Control_Exp1001
 ```
 
 验证

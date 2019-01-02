@@ -60,7 +60,7 @@ class EvaluationBase():
         plt.ylabel("Rewards")
         plt.show()
 
-    def draw_eval(self):
+    def draw_eval(self, draw_title=True):
 
         # 直接将评估结果转换为nparray
         eval_array = np.array(self.eval_list)
@@ -72,12 +72,13 @@ class EvaluationBase():
             for exp_id in range(exp_num):
                 print("%s peformed %f in eval round %i" % (self.exp_name[exp_id], np.sum(eval_reward_list[exp_id, round_id,:]), round_id))
             figure = plt.figure(**self.eval_plt_param)
+            if draw_title:
 
-            if rounds > 1:
-                # -1是为了减去最后的那次评估
-                figure.suptitle("After %i training tounds" % (round_id*self.training_rounds/(rounds-1)))
-            else:
-                figure.suptitle("After %i training tounds" % 0)
+                if rounds > 1:
+                    # -1是为了减去最后的那次评估
+                    figure.suptitle("After %i training tounds" % (round_id*self.training_rounds/(rounds-1)))
+                else:
+                    figure.suptitle("After %i training tounds" % 0)
 
             #figure.suptitle("Training Rounds %i" % (round_id*self.training_rounds/(rounds-1)),fontsize=16,x=0.53,y=1.05)
             #plt.title("Training Rounds %i" % round_id)
