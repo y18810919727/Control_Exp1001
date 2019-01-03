@@ -38,6 +38,7 @@ python3 -m pip install --upgrade --index-url https://test.pypi.org/simple/ Contr
 1. 仿真模型
    - 仿真模型基类
    - 样例模型
+   - 赤铁矿浮选仿真
 2. 控制模型
    - 控制基类
    - 样例控制模型
