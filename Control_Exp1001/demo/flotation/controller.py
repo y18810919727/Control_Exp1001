@@ -308,7 +308,7 @@ class ILPL(ACBase):
     # 自己看论文公式18
     def find_best_u(self, u0,y,y_star):
         if self.u_begin is not None:
-            u0 = self.u_begin
+            u0 = u0.zero_() + torch.FloatTensor(self.u_begin)
         U = np.diag(self.u_bounds[:,1] - self.u_bounds[:,0])
         U = torch.FloatTensor(U)
         S = self.env.penalty_calculator.S
@@ -318,9 +318,9 @@ class ILPL(ACBase):
         )
 
         # 我对论文的理解是用迭代的方法求u*
-        for _ in range(self.u_iter):
+        for _ in itertools.count():
 
-
+            tmp_u0 = u0.clone()
             # region 方向传播计算V对u的梯度
 
             u0.requires_grad = True
@@ -336,6 +336,12 @@ class ILPL(ACBase):
             tmp = torch.tanh(tmp)
             tmp = F.linear(tmp, U, bias=u_mid)
             u0 = tmp
+            if (tmp_u0 - u0).norm()<0.1:
+                break
+            if _ > 50:
+                print("Too much times for find u*")
+                break
+
 
         return u0
 

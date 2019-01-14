@@ -64,7 +64,7 @@ def run():
                       critic_nn_error_limit=0.1,
                       actor_nn_loss= 0.6,
                       u_iter=30,
-                      u_begin=None,
+                      u_begin=[1.5,20],
                       indice_y=[2, 3],
                       indice_y_star=[0, 1],
                       )
