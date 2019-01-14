@@ -9,20 +9,25 @@ import Control_Exp1001.demo.exp_test
 import matplotlib.pyplot as plt
 
 class Flotation(BaseEnv):
-    def __init__(self, dt=1, reward_calculator=None,
-                 size_yudc=None, u_low=np.array([1,3], dtype=float),
+    def __init__(self, dt=1, penalty_calculator=None,
+                 size_yudc=None, u_low=np.array([1,10], dtype=float),
                  u_high=np.array([3,30],dtype=float), normalize=False,
                  time_length=1,
                  one_step_length=0.001,
-                 y_name=None
+                 y_name=None,
+                 y_star=None
                  ):
         if size_yudc is None:
             size_yudc = [2, 2, 0, 4]
         if y_name is None:
             y_name = ["Lcg", "Ltg"]
+
+        if y_star is None:
+            y_star = np.array([17.30, 0.75], dtype=float)
+        self.y_star = y_star
         super(Flotation, self).__init__(
             dt = dt,
-            reward_calculator=reward_calculator,
+            penalty_calculator=penalty_calculator,
             size_yudc=size_yudc,
             u_low=u_low,
             u_high=u_high,
@@ -39,9 +44,11 @@ class Flotation(BaseEnv):
         self.H = 3.2  # total height
         self.Lcu = 42  #
         self.qT = 9.3  # tail flow
-        self.qc = 20  #
+        #self.qc = 20  #
+        self.qc = 7.392  #
         self.Xa = np.array([0,0],dtype=float)  # mineral grade
-        self.Xa[0] = 0.4
+        #self.Xa[0] = 0.4
+        self.Xa[0] = 0.1549
         self.Xa[1] = (self.gcp[0]-self.ga)/(self.ga-self.gcp[1]) * self.Xa[0]
 
     def reset_u(self):
@@ -65,7 +72,7 @@ class Flotation(BaseEnv):
     def reset_y_star(self):
         #return np.array([17.34, 0.75],dtype=float)
         #return np.array([16.8, 1123, 4.3, 0.12], dtype=float)
-        return np.array([17.20, 0.60], dtype=float)
+        return self.y_star
 
     def observation(self):
         return np.hstack([self.y_star, self.y, self.u])
@@ -76,6 +83,8 @@ class Flotation(BaseEnv):
 
         Mp = c[:2]
         Me = c[2:]
+
+        self.qT = 0.9679*(qa - self.qc)
 
         for _ in np.arange(0, self.time_length, self.one_step_length):
 
@@ -93,18 +102,31 @@ class Flotation(BaseEnv):
         return ny, u, nc, d
 
     @classmethod
-    def flotation_test(cls):
-        simulation_test(Flotation, mode="const",
-                        const_u=[[1, 17], [1.5, 17], [2, 3], [2, 20], [2.5, 17]], seprate_num=3,
+    def flotation_test(cls, init_para=None):
+        if init_para is None:
+            init_para = {}
+        simulation_test(Flotation, mode="const",init_para=init_para,
+                        const_u=[[1, 17], [1.5, 17], [2, 10], [2, 20], [2.5, 17]], seprate_num=3,
                         test_step=100, eval_plt_param={"figsize": (15, 10)})
-        simulation_test(Flotation, mode="random", test_step=100, eval_plt_param={"figsize": (15, 10)})
+        simulation_test(Flotation, mode="random",init_para=init_para,test_step=100, eval_plt_param={"figsize": (15, 10)})
 
-        simulation_test(Flotation, mode="uniform", seprate_num=3, test_step=100, eval_plt_param={"figsize": (15, 10)})
+        simulation_test(Flotation, mode="uniform",init_para=init_para, seprate_num=3, test_step=100, eval_plt_param={"figsize": (15, 10)})
 
 if __name__ == '__main__':
+    '''
+    
     simulation_test(Flotation, mode="const",
                     const_u=[[1, 17], [1.5, 17], [2, 3], [2, 20], [2.5, 17]] , seprate_num=3,
-                    test_step=100, eval_plt_param={"figsize": (15, 10)})
-    simulation_test(Flotation, mode="random", test_step=100, eval_plt_param={"figsize": (15, 10)})
+                    test_step=200, eval_plt_param={"figsize": (15, 10)})
+    '''
+    simulation_test(Flotation, mode="random", test_step=200, eval_plt_param={"figsize": (15, 10)})
 
-    simulation_test(Flotation, mode="uniform", seprate_num=3, test_step=100, eval_plt_param={"figsize": (15, 10)})
+    simulation_test(Flotation, mode="uniform", seprate_num=3, test_step=200, eval_plt_param={"figsize": (15, 10)})
+
+    simulation_test(Flotation, mode="const",
+                    const_u=[[1, 17], [1.5, 10], [1.5, 17], [1.5, 20],[1.5, 30], [2.5, 17], [3, 17]] , seprate_num=3,
+                    test_step=200, eval_plt_param={"figsize": (15, 10)})
+
+    simulation_test(Flotation, mode="const",
+                    const_u=[[2.232,19.85]] , seprate_num=3,
+                    test_step=200, eval_plt_param={"figsize": (15, 10)})

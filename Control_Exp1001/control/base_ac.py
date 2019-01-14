@@ -23,7 +23,7 @@ class ACBase(ControlBase):
         """
         super(ACBase, self).__init__(u_bounds)
         self.device = None
-        self.cude_device(gpu_id)
+        self.cuda_device(gpu_id)
         self.replay_buffer = replay_buffer
         self.exploration = exploration
 
@@ -40,7 +40,7 @@ class ACBase(ControlBase):
         print('train_mode is changed to %s!' % "True" if new_state else "False")
         self._train_mode = new_state
 
-    def cude_device(self, cuda_id):
+    def cuda_device(self, cuda_id):
         use_cuda = torch.cuda.is_available()
         cuda = 'cuda:'+str(cuda_id)
         self.device = torch.device(cuda if use_cuda else "cpu")

@@ -7,7 +7,7 @@ from matplotlib import pyplot  as plt
 from Control_Exp1001.exp.base_exp import BaseExp
 from Control_Exp1001.exp.exp_perform import exp_multi_thread_run
 from Control_Exp1001.common.replay.replay_buffer import ReplayBuffer
-from Control_Exp1001.common.rewards.demo_reward import DemoReward
+from Control_Exp1001.common.penaltys.demo_penalty import DemoReward
 from Control_Exp1001.simulation.demo_simmulation import DemoSimulation as Env
 from Control_Exp1001.control.td3 import Td3
 from Control_Exp1001.control.demo_control import DemoControl

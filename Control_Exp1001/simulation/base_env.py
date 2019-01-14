@@ -5,7 +5,7 @@ import pprint
 
 from gym.utils import seeding
 import numpy as np
-from Control_Exp1001.common.rewards.demo_reward import DemoReward
+from Control_Exp1001.common.penaltys.demo_penalty import DemoPenalty
 from Control_Exp1001.simulation import utils
 
 
@@ -13,7 +13,7 @@ class BaseEnv():
     """
     Superclass for all simulations.
     """
-    def __init__(self, dt=1, reward_calculator=None,
+    def __init__(self, dt=1, penalty_calculator=None,
                  size_yudc=None,
                  y_low=None, u_low=None,
                  d_low=None, c_low=None,
@@ -29,7 +29,7 @@ class BaseEnv():
         # time step
         self.dt = dt
         self.np_random = None
-        self.reward = 0
+        self.penalty = 0
         self.done = False
         self.terminate_state = terminate_state
         self.render_mode = render_mode
@@ -67,10 +67,13 @@ class BaseEnv():
         self.set_d(self.size_yudc[2], d_low, d_high)
         self.set_c(self.size_yudc[3], c_low, c_high)
 
-        # Each env has a reward calculator, the default calculator is DemoReward.
-        if reward_calculator is None:
-            reward_calculator = DemoReward()
-        self.reward_calculator = reward_calculator
+        # Each env has a penalty calculator, the default calculator is DemoPenalty.
+        if penalty_calculator is None:
+            penalty_calculator = DemoPenalty()
+        self.penalty_calculator = penalty_calculator
+        self.penalty_calculator.u_bounds = self.u_bounds
+        self.penalty_calculator.y_shape = self.size_yudc[0]
+        self.penalty_calculator.u_shape = self.size_yudc[1]
 
         # normalize action in to range(-1,1)
         self.normalize = normalize
@@ -273,7 +276,7 @@ class BaseEnv():
             "u": self.u,
             "d": self.d,
             "c": self.c,
-            "reward": self.reward,
+            "penalty": self.penalty,
             "done": self.done,
         }
         self.log.update(dic)
@@ -294,7 +297,7 @@ class BaseEnv():
         self.add_log("u action",new_u)
         self.add_log("y old", self.y)
         self.done = False
-        self.reward = 0
+        self.penalty = 0
 
         # clip u in u_bounds
         self.u = self.solve_u(new_u)[2]
@@ -302,13 +305,13 @@ class BaseEnv():
         # calculate new y u d c ,and whether the env is terminal
         self.done = self._step()
 
-        # calculate the reward according to reward calculator
-        self.reward = self.reward_calculator.cal(self.y_star, self.y, self.u, self.c, self.d)
+        # calculate the penalty according to penalty calculator
+        self.penalty = self.penalty_calculator.cal(self.y_star, self.y, self.u, self.c, self.d)
 
         if self.render_mode is True:
             self.render()
 
-        return self.observation(), self.reward, self.done, None
+        return self.observation(), self.penalty, self.done, None
 
     def _step(self):
 
