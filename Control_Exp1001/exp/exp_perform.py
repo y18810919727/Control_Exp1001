@@ -1,6 +1,7 @@
 
 # -*- coding:utf8 -*-
 import threading
+
 import numpy as np
 
 
@@ -30,3 +31,7 @@ def exp_multi_thread_run(exp_list):
     return res_list
 
 
+def exp_single_thread_run(exp_list):
+    res_list = [exp_list[i].run() for i in range(len(exp_list))]
+    print("All exp stops")
+    return res_list

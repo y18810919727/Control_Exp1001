@@ -1,12 +1,12 @@
 #!/usr/bin/python
 # -*- coding:utf8 -*-
 import numpy as np
-import math
-import Control_Exp1001 as CE
-from Control_Exp1001.exp.exp_perform import exp_multi_thread_run
-from Control_Exp1001.common.evaluation.base_evaluation import EvaluationBase
-from Control_Exp1001.exp.base_exp import BaseExp
+
+from Control_Exp1001.common.evaluation.one_round_evaluation import OneRoundEvaluation as EvaluationBase
 from Control_Exp1001.control.base_control import ControlBase
+from Control_Exp1001.exp.exp_perform import exp_single_thread_run
+from Control_Exp1001.exp.one_round_exp import OneRoundExp as BaseExp
+
 
 class Test_Control(ControlBase):
     def __init__(self, u_bounds, act_u=None):
@@ -17,6 +17,9 @@ class Test_Control(ControlBase):
     def _act(self, state):
         return self.act_u(state)
 
+    def train(self, s, u, ns, r, done):
+        pass
+
 def test_controller_construct(act_list, Env,init_para=None, act_name=None, test_step=200):
 
     exp_list = []
@@ -26,10 +29,8 @@ def test_controller_construct(act_list, Env,init_para=None, act_name=None, test_
         env = Env(**init_para)
         controller = Test_Control(np.copy(env.u_bounds), act_u=act)
 
-        # 创建一个不训练只评估的exp
         exp = BaseExp(env=env, controller=controller,
-                      rounds=0, eval_length=test_step,
-                      eval_rounds=0, exp_name=act_name[id])
+                      exp_name=act_name[id], max_step=test_step)
         exp_list.append(exp)
 
 
@@ -49,8 +50,6 @@ def simulation_test(Env=None, mode="uniform",init_para=None,
 
     low = u_bounds[:, 0]
     high = u_bounds[:, 1]
-    if y_name is None:
-        y_name = Env().y_name
     act_name = []
     if mode is "uniform":
         act_u_list = []
@@ -85,18 +84,6 @@ def simulation_test(Env=None, mode="uniform",init_para=None,
     else:
         raise ValueError("mode should be assigned in {uniform, const, random}")
 
-    if y_name is None:
-        y_name = [str(i+1) for i in range(Env().size_yudc[0])]
-
-    res_list = exp_multi_thread_run(exp_list)
-    evaluation = EvaluationBase(res_list=res_list, training_rounds=0,
-                                y_name=y_name, exp_name=act_name, y_num=tmp_env.size_yudc[0],
-                                eval_plt_param=eval_plt_param)
-    evaluation.draw_eval(draw_title=False)
-
-
-
-
-
-
-
+    res_list = exp_single_thread_run(exp_list)
+    evaluation = EvaluationBase(res_list=res_list)
+    evaluation.plot_all()

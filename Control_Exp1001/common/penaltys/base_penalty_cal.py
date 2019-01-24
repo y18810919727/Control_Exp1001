@@ -1,13 +1,6 @@
 
 # -*- coding:utf8 -*-
-import os
-from gym import error, spaces
-from gym.utils import seeding
 import numpy as np
-from os import path
-import gym
-import six
-from Control_Exp1001.simulation import utils
 
 
 # 计算奖赏，需要继承
@@ -23,25 +16,25 @@ class BasePenalty:
         self.position = -1
         self.capacity = 100
         self.weight_matrix = weight_matrix
+        self.S = S
         self.u_bounds = None
         self.y_shape = 0
         self.u_shape = 0
 
+    def change_list2diag(self, size, W=None):
+        if W is None:
+            W = np.diag(np.ones(size))
+        else:
+            W = np.array(W)
+            if W.shape[0] != size:
+                raise ValueError("size mismatch")
+            W = np.diag(W)
+        return W
 
-        # 控制项的惩罚权重
-        if S is None :
-            S = np.ones(self.u_shape)
-        S = np.diag(S)
-        self.S = S
+    def create(self):
 
-
-        # 目标项的惩罚权重
-        if weight_matrix is None:
-            weight_matrix = np.ones(self.y_shape)
-        weight_matrix = np.diag(weight_matrix)
-        self.weight_matrix = weight_matrix
-
-
+        self.weight_matrix = self.change_list2diag(self.y_shape, self.weight_matrix)
+        self.S = self.change_list2diag(self.u_shape, self.S)
 
     def push(self, x):
         if len(self.state_buffer) < self.capacity:

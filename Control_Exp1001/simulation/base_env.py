@@ -3,8 +3,9 @@
 import copy
 import pprint
 
-from gym.utils import seeding
 import numpy as np
+from gym.utils import seeding
+
 from Control_Exp1001.common.penaltys.demo_penalty import DemoPenalty
 from Control_Exp1001.simulation import utils
 
@@ -24,7 +25,10 @@ class BaseEnv():
                  terminate_state = False,
                  time_length=1.0,
                  one_step_length=0.001,
-                 y_name=None
+                 y_name=None,
+                 u_name=None,
+                 c_name=None,
+                 d_name=None,
                  ):
         # time step
         self.dt = dt
@@ -33,6 +37,7 @@ class BaseEnv():
         self.done = False
         self.terminate_state = terminate_state
         self.render_mode = render_mode
+        self.time_step = -1
         if size_yudc is None:
             raise Exception('No size_yudc!')
 
@@ -74,6 +79,7 @@ class BaseEnv():
         self.penalty_calculator.u_bounds = self.u_bounds
         self.penalty_calculator.y_shape = self.size_yudc[0]
         self.penalty_calculator.u_shape = self.size_yudc[1]
+        self.penalty_calculator.create()
 
         # normalize action in to range(-1,1)
         self.normalize = normalize
@@ -89,9 +95,22 @@ class BaseEnv():
         self.time_length = time_length
         self.one_step_length = one_step_length
 
+
         if y_name is None:
             y_name = [str(i) for i in range(self.size_yudc[0])]
         self.y_name = y_name
+
+        if u_name is None:
+            u_name = [str(i) for i in range(self.size_yudc[1])]
+        self.u_name = u_name
+
+        if c_name is None:
+            c_name = [str(i) for i in range(self.size_yudc[2])]
+        self.c_name = c_name
+
+        if d_name is None:
+            d_name = [str(i) for i in range(self.size_yudc[3])]
+        self.d_name = d_name
 
     @staticmethod
     def set_bound(size, low, high, kind='Unkown'):
@@ -252,6 +271,7 @@ class BaseEnv():
         self._reset_u()
         self._reset_y()
         self._reset_y_star()
+        self.time_step = 0
         return self.observation()
 
     def solve_u(self, u):
@@ -287,8 +307,12 @@ class BaseEnv():
         return None
 
     def step(self, new_u=None):
+        if self.time_step == -1:
+            raise ValueError('Please reset before step')
         if new_u is None:
             new_u = self.u
+
+        new_u = np.array(new_u)
         self.log = {}
         self.add_log("u normal",new_u)
         if self.normalize is True:
@@ -299,10 +323,14 @@ class BaseEnv():
         self.done = False
         self.penalty = 0
 
+        # add time
+        self.time_step += 1
+
         # clip u in u_bounds
         self.u = self.solve_u(new_u)[2]
 
         # calculate new y u d c ,and whether the env is terminal
+
         self.done = self._step()
 
         # calculate the penalty according to penalty calculator

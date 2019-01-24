@@ -1,6 +1,7 @@
 
 # -*- coding:utf8 -*-
 import numpy as np
+
 from Control_Exp1001.common.penaltys.base_penalty_cal import BasePenalty
 
 
@@ -18,4 +19,4 @@ class DemoPenalty(BasePenalty):
         res = a * W * a.T
         """
         res = float(tmp.dot(weight_matrix).dot(tmp.T))
-        return -res
+        return res
