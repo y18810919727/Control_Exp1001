@@ -3,8 +3,10 @@
 import collections
 
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
 import numpy as np
 
+import copy
 
 class DataPackage:
     def __init__(self, exp_name=None, value_name=None, para=None):
@@ -62,15 +64,37 @@ class DataPackage:
             return
         if len(self.value_name) != self.size:
             raise ValueError('size of value_name and size are not match')
-        para = self.para
+        para = copy.deepcopy(self.para)
         fig = plt.figure(**para)
         for pic_id in range(self.size):
             legend_name = []
             for (key, values) in self.data.items():
                 values_array = np.array(values)
                 legend_name.append(key)
-                plt.plot(values_array[:, pic_id])
-            plt.legend(legend_name)
+                line_color = 'k' if key=='set point' else None
+                plt.plot(values_array[:, pic_id], c=line_color)
+
+            if not self.value_name[pic_id] == 'Concentration(In)' \
+                    and not self.value_name[pic_id] == 'pulp speed(Feed In)':
+                plt.legend(legend_name)
 
             plt.title(self.value_name[pic_id])
+            plt.savefig('./images/'+str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
             plt.show()
+
+    def cal_mse(self):
+        if "set point" not in self.data.keys():
+            return
+        for pic_id in range(1, self.size):
+            set_point = np.array(self.data['set point'])[:, pic_id]
+            for (key, values) in self.data.items():
+                if key == 'set point':
+                    continue
+                values_array = np.array(values)
+                line_color = 'k' if key=='set point' else None
+                plt.plot(values_array[:, pic_id], c=line_color)
+                print("MSE\t%s\t%f"%(key, mean_squared_error(
+                    set_point, values_array[:, pic_id]
+                )))
+
+

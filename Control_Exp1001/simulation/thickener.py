@@ -17,6 +17,8 @@ class Thickener(BaseEnv):
                  u_high=None,
                  c_low=None,
                  c_high=None,
+                 y_low=None,
+                 y_high=None,
                  normalize=False,
                  time_length=120,
                  one_step_length=0.0005,
@@ -25,8 +27,11 @@ class Thickener(BaseEnv):
                  c_name=None,
                  c_start=None,
                  y_start=None,
+                 y_star=None,
                  mean_c=None,
-                 cov_c=None
+                 cov_c=None,
+                 random_seed=None,
+                 noise_type=None
                  ):
         """
 
@@ -69,6 +74,11 @@ class Thickener(BaseEnv):
             c_low = [34, 63]
         if c_high is None:
             c_high = [46, 83]
+
+        if y_low is None:
+            y_low = [0.75, 280]
+        if y_high is None:
+            y_high = [2.5, 1200]
         self.noise_in = noise_in
 
         if mean_c is None:
@@ -78,6 +88,8 @@ class Thickener(BaseEnv):
         self.mean_c = np.array(mean_c)
         self.cov_c = np.array(cov_c)
         self.noise_p = noise_p
+        self.random_seed = random_seed
+        self.noise_type = noise_type
         super(Thickener, self).__init__(
             dt=dt,
             penalty_calculator=penalty_calculator,
@@ -86,6 +98,8 @@ class Thickener(BaseEnv):
             u_high=u_high,
             c_low=c_low,
             c_high=c_high,
+            y_low=y_low,
+            y_high=y_high,
 
             normalize=normalize,
             time_length=time_length,
@@ -94,6 +108,11 @@ class Thickener(BaseEnv):
             u_name=u_name,
             c_name=c_name,
         )
+
+        if y_star is None:
+            y_star = np.array([1.48, 680], dtype=float)
+        self.y_star = np.array(y_star)
+
 
         self.param = {}
 
@@ -133,7 +152,7 @@ class Thickener(BaseEnv):
         return np.copy(self.c_start)
 
     def reset_y_star(self):
-        return np.array([1.48, 680], dtype=float)
+        return np.copy(self.y_star)
 
     def observation(self):
         return np.hstack([self.y_star, self.y, self.u, self.c])
@@ -173,14 +192,26 @@ class Thickener(BaseEnv):
         # print(self.time_step, 'u',u,"c",c,"ht", 'old y',[ht2,cu2], 'new y', y)
 
         # region update c
-        if self.noise_in and random.random() < self.noise_p:
-            c = np.random.multivariate_normal(mean=self.mean_c, cov=self.cov_c)
-            # 限制c的上下限
-            c = self.bound_detect(c, self.c_bounds)[2]
+        c = self.update_c(c)
         # endregion
 
         return y, u, c, d
 
+    def update_c(self, c):
+
+        if self.noise_type is None:
+
+            if self.noise_in and np.random.uniform(0,1) < self.noise_p:
+                print('*'*20)
+                print('update c')
+                print('*'*20)
+                c = np.random.multivariate_normal(mean=self.mean_c, cov=self.cov_c)
+                # 限制c的上下限
+                c = self.bound_detect(c, self.c_bounds)[2]
+        elif self.noise_type == 1:
+            if self.time_step == 200:
+                c = np.array([35, 65])
+        return c
     # 用那个常微分工具，不能直接在args中写**dict,建立一个中转的静态方法
     @staticmethod
     def cal_grad_inter(y, t, fu, ff, fi, ci, para):
@@ -243,6 +274,15 @@ class Thickener(BaseEnv):
         grad_cu = grad_ca / p
 
         return [grad_ht, grad_cu]
+
+    def _reset(self):
+        if self.random_seed is not None:
+            np.random.seed(self.random_seed)
+
+
+
+
+
 
 
 def debug_const():

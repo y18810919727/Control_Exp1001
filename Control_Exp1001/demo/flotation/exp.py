@@ -28,7 +28,8 @@ def run():
         "normalize": False,
         "penalty_calculator": penalty,
         "one_step_length": 0.005,
-        "y_star": np.array([17.32, 0.84], dtype=float)
+        #"y_star": np.array([17.32, 0.84], dtype=float)
+        "y_star": np.array([17.3, 0.8], dtype=float)
     }
 
 
@@ -72,7 +73,7 @@ def run():
     exp = FlotationExp(
         env=env,
         controller=controller,
-        max_step=400,
+        max_step=200,
         exp_name="ILPL"
     )
 

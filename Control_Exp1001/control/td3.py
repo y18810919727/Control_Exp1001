@@ -224,8 +224,3 @@ class Td3(ACBase):
         if len(self.replay_buffer) <= self.batch_size:
             return
         self.update_model()
-
-
-
-
-

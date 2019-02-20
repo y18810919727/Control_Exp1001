@@ -329,12 +329,13 @@ class BaseEnv():
         # clip u in u_bounds
         self.u = self.solve_u(new_u)[2]
 
-        # calculate new y u d c ,and whether the env is terminal
-
-        self.done = self._step()
 
         # calculate the penalty according to penalty calculator
         self.penalty = self.penalty_calculator.cal(self.y_star, self.y, self.u, self.c, self.d)
+
+        # calculate new y u d c ,and whether the env is terminal
+        self.done = self._step()
+
 
         if self.render_mode is True:
             self.render()

@@ -45,6 +45,7 @@ class OneRoundExp:
 
         state = self.env.reset()
         self.controller.step_reset()
+        self.controller.env = self.env
         # 训练eval_cycle个round之后，进行一次模型评估
 
         y_data = DataPackage(exp_name=self.exp_name, value_name=self.env.y_name)

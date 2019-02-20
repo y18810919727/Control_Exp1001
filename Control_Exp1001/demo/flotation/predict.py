@@ -8,7 +8,7 @@ import os
 import json
 
 class Model(torch.nn.Module):
-    def __init__(self,dim_in,dim_out,device,Vm=None,Lm=None,dim_hidden=4,):
+    def __init__(self,dim_in,dim_out,device,Vm=None,Lm=None,dim_hidden=6,):
         super(Model,self).__init__()
 
         self.Vm=torch.nn.Linear(dim_in,dim_hidden,bias=False)
