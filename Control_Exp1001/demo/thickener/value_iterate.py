@@ -386,7 +386,7 @@ class VI(ACBase):
 
 
 
-        # 拟归一化为底流泵速和絮凝剂泵速
+        # 逆归一化为底流泵速和絮凝剂泵速
         A = np.matrix(np.diag(self.delta_u/2))
         B = np.matrix(self.mid_u).T
         act = A*np.matrix(act).T + B
