@@ -20,14 +20,19 @@ penalty_para = {
     #"weight_matrix": [0, 0.002],
     "weight_matrix": [0, 0.004],
     #"S": [0.00001, 0.00008],
-    "S": [0.0001, 0.0008]
+    "S": [0.0001, 0.0008],
 }
 thickner_para = {
     "dt":1,
     "noise_in": False,
     "noise_p": 0.002,
     "noise_type": 1,
+    #'time_length':40
 }
+mse_vi_pre=[]
+mse_vi_sample_pre=[]
+mse_vi=[]
+mse_vi_sample=[]
 def test_model_hidden():
 
     env = Thickener(noise_in=True)
@@ -145,7 +150,7 @@ def run_vi(rounds=1000,seed=random.randint(0,1000000),name='VI',capacity=2,
                     **thickner_para,
                     )
 
-
+    mse_vi_pre.append(vi.con_predict_mse)
     res1 = OneRoundExp(controller=vi, env=env_vi,max_step=rounds, exp_name=name).run()
 
 
@@ -164,6 +169,8 @@ def run_vi_sample(rounds=1000,seed=random.randint(0,1000000),name='VI_sample',ca
         **thickner_para,
     )
     res1 = OneRoundExp(controller=vi_sample, env=env_vi_sample,max_step=rounds, exp_name=name).run()
+
+    mse_vi_sample_pre.append(vi_sample.con_predict_mse)
     return res1
 
 def compare_hdp_hdpsample():
@@ -209,7 +216,7 @@ def vi_compare_hdp():
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)
-    rand_seed = 320743
+    # rand_seed = 320743
     res_list.append(run_vi(rounds=round,seed=rand_seed, name='VI', predict_round=predict_round))
     res_list.append(run_hdp(rounds=round,seed=rand_seed, name='HDP', predict_round=predict_round))
     eval_res = OneRoundEvaluation(res_list=res_list)
@@ -245,7 +252,11 @@ def vi_compare_sample():
 
 
     eval_res = OneRoundEvaluation(res_list=res_list)
-    eval_res.plot_all()
+    mse_dict = eval_res.plot_all()
+
+    mse_vi.append(mse_dict['VI'])
+    mse_vi_sample.append(mse_dict['VI_sample'])
+
 
 def vi_diff_capacity():
 
@@ -261,6 +272,40 @@ def vi_diff_capacity():
     eval_res.plot_all()
 
 
+def vi_compard_simple_multi_times():
+    for i in range(3):
+        vi_compare_sample()
+        #vi_compare_sample()
+        os.remove('training_data_800.json')
+
+    print(mse_vi_sample)
+    print(mse_vi)
+    print(mse_vi_sample_pre)
+    print(mse_vi_pre)
+    fig1 = plt.figure()
+    colors = ['b', 'g', 'r', 'orange']
+    label = ['VI_sample control', 'VI control','VI_sample predict','VI predict control']
+    for id, array in enumerate([mse_vi_sample, mse_vi, mse_vi_sample_pre, mse_vi_pre]):
+        array = np.array(array)
+        std = np.std(array)
+        mean = np.mean(array)
+        array=(array-mean)/std
+        plt.scatter(np.arange(0,10,10), array, c=colors[id], cmap='brg', s=40, alpha=0.2, marker='8', linewidth=0)
+    ax = fig1.gca()
+
+    for label in ax.xaxis.get_ticklabels():
+        label.set_rotation(30)
+    plt.xlabel('Time')
+    plt.ylabel('Price')
+    # added this to get the legend to work
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels=label, loc='upper right')
+    plt.title('Relations between MSE in control and MSE in forecast')
+    plt.show()
+
+    from scipy.stats import pearsonr
+    print('pearson:', pearsonr(mse_vi_pre+mse_vi_sample_pre, mse_vi+mse_vi_sample))
+
 if __name__ == '__main__':
 
     # HDP算法单独运行
@@ -272,11 +317,12 @@ if __name__ == '__main__':
     # run_hdp_sample()
     # compare_hdp_hdpsample()
     # vi_diff_capacity()
-    # for i in range(1):
-    #     vi_compare_sample()
-    #     #vi_compare_sample()
-    #     os.remove('training_data_800.json')
-    vi_compare_hdp()
+    for i in range(3):
+        vi_compare_sample()
+        #vi_compare_sample()
+        os.remove('training_data_800.json')
+
+    # vi_compare_hdp()
 
 
 

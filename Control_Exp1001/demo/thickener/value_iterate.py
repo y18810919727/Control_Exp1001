@@ -189,7 +189,7 @@ class VI(ACBase):
         self.delta_u = self.env.u_bounds[:, 1] - self.env.u_bounds[:, 0]
         self.mid_u = np.mean(self.env.u_bounds, axis=1)
         x = torch.FloatTensor(np.hstack((y, y_star,c))).unsqueeze(0)
-        print('#' * 20)
+        #print('#' * 20)
 
         # region 基于python scipy.optimize.minimize 求最优act
         # 可能由于fun太过复杂，最后求得得x几乎与x0相同，该方案阉割
@@ -321,8 +321,11 @@ class VI(ACBase):
 
         # region 使用torch自带优化器来求解最优act
 
-        act = torch.nn.Parameter(torch.rand((1,self.env.size_yudc[1])))
+        act = torch.nn.Parameter(2*torch.rand((1,self.env.size_yudc[1]))-1)
         opt = torch.optim.Adam(params=[act], lr=0.1)
+        act_begin = np.copy(act.data.numpy()).squeeze()
+        act_list = []
+        act_list.append(np.copy(act.data.numpy()).squeeze())
         while True:
             old_act = act.clone()
             diff_U = torch.FloatTensor(self.u_bounds[:,1]-self.u_bounds[:,0])
@@ -343,17 +346,11 @@ class VI(ACBase):
             J_loss.backward()
             opt.step()
             act.data = torch.nn.Parameter(torch.clamp(act,min=-1,max=1)).data
+            act_list.append(np.copy(act.data.numpy()).squeeze())
             if torch.dist(act, old_act)<1e-4:
                 break
 
         act = act.detach().numpy()
-
-
-
-
-
-
-
 
         # endregion
         #print("final act:", act)
@@ -376,6 +373,9 @@ class VI(ACBase):
         # self.actor_nn[-1].weight.requires_grad = False
         # self.actor_nn[-1].bias.requires_grad = False
 
+        # if (self.step-1) % 20  == 0:
+        #     self.test_critic_nn(title='round:'+str(self.step), cur_state=y, act_list=act_list)
+
         return act
 
 
@@ -395,6 +395,7 @@ class VI(ACBase):
         # 更新模型
         self.update_model(state, action, reward, next_state, done)
 
+
     def update_model(self,state, action, penalty, next_state, done):
 
         tmp_state = np.copy(state)
@@ -412,8 +413,6 @@ class VI(ACBase):
         c = torch.index_select(state, 1, indices_c)
         nc = torch.index_select(next_state, 1, indices_c)
 
-        # if (self.step-1) % 100  == 0:
-        #     self.test_critic_nn(title='round:'+str(self.step))
 
 
         # region update model nn
@@ -458,7 +457,7 @@ class VI(ACBase):
             if critic_loss < self.critic_nn_error_limit:
                 break
             # endregion
-        print('step:',self.step, 'critic loop',loop_time)
+        # print('step:',self.step, 'critic loop',loop_time)
 
 
 
@@ -503,7 +502,7 @@ class VI(ACBase):
         # 生成训练数据
         print("模拟生成")
         for _ in range(rounds):
-            print(_)
+            #print(_)
             y = self.env.observation()[2:4]
             act = np.random.uniform(self.u_bounds[:,0], self.u_bounds[:,1])
             c = self.env.observation()[6:8]
@@ -547,6 +546,7 @@ class VI(ACBase):
                 self.env.reset()
         real_y_array = np.array(real_y_list)
         pred_y_array = np.array(pred_y_list)
+        self.con_predict_mse = mean_squared_error(real_y_array[:,1], pred_y_array[:,1])
 
         for i in range(self.env.size_yudc[0]):
             plt.plot(np.arange(real_y_array.shape[0]), real_y_array[:,i], 'o-')
@@ -558,6 +558,7 @@ class VI(ACBase):
 
             plt.savefig('./images/'+str(self.env.y_name[i])+"_predict"+
                         self.__class__.__name__+'.png', dpi=300)
+
             plt.show()
 
     def cal_predict_mse(self, test_rounds=1000, diff=False):
@@ -596,6 +597,7 @@ class VI(ACBase):
         return new_y.reshape(-1)
 
     def normalize_state(self,state):
+        state = np.array(state)
         state_max = np.hstack([self.y_max, self.x_max])
         state_min = np.hstack([self.y_min, self.x_min])
         new_state = 2*(state - state_min)/(state_max-state_min) - 1
@@ -688,30 +690,73 @@ class VI(ACBase):
 
     def test_c_f(self,y1,y2):
         y = self.normalize_y(np.array([y1, y2]))
-        c = self.normalize_c(np.array([40, 73]))
+
+        if self.step<200:
+            c = self.normalize_c(np.array([40, 73]))
+        else:
+            c = self.normalize_c(np.array([35, 65]))
         y_star = self.normalize_y(np.array([1.48, 680]))
         input_critic = np.hstack([y, y_star, c])
         tmp = torch.FloatTensor(input_critic).unsqueeze(0)
         J_pred = self.critic_nn(tmp).squeeze().data
         return float(J_pred)
 
-    def test_critic_nn(self,title):
+    def test_c_f_u(self,u1,u2):
+
+        act = torch.FloatTensor([[u1, u2]])
+        diff_U = torch.FloatTensor(self.u_bounds[:,1]-self.u_bounds[:,0])
+        det_u = torch.nn.functional.linear(input=act, weight=torch.diag(diff_U/2))
+        # penalty_u = (det_u.mm(torch.FloatTensor(self.env.penalty_calculator.S)).mm(
+        #     det_u.t()
+        # )).diag().unsqueeze(dim=1)
+        penalty_u = (det_u.mm(torch.FloatTensor(self.env.penalty_calculator.S)).mm(
+            det_u.t()
+        )).diag()
+        if self.step<200:
+            c = self.normalize_c(np.array([40, 73]))
+        else:
+            c = self.normalize_c(np.array([35, 65]))
+        c=torch.FloatTensor([c])
+        y = self.sstate
+        y_star = self.normalize_y([1.48, 680])
+        y_star = torch.FloatTensor([y_star])
+        y_pred = self.model_nn(torch.cat((y, act, c), dim=1))
+        J_pred = self.critic_nn(torch.cat((y_pred, y_star, c), dim=1))
+        #penalty_u = torch.zeros(J_pred.shape)
+        J_loss = penalty_u + self.gamma * J_pred
+        return float(J_loss)
+
+    def test_critic_nn(self,cur_state=None, title="None",act_list=None):
+        act_list = np.array(act_list)
+        if act_list is None:
+            act_list=[]
         fig = plt.figure()
         y_min = self.y_min
         y_max = self.y_max
 
         X , Y = np.meshgrid(np.linspace(y_min[0], y_max[0], 30),
                             np.linspace(y_min[1], y_max[1], 30))
-        f = np.frompyfunc(self.test_c_f,2,1)
-        J_pred_res = f(X,Y)
+
         X1, Y1 = np.meshgrid(
-            np.linspace(-1, 1, 30),
-            np.linspace(-1, 1, 30)
+            np.linspace(-1, 1, 60),
+            np.linspace(-1, 1, 60)
         )
+        f = np.frompyfunc(self.test_c_f,2,1)
+        self.sstate = cur_state
+        f_u = np.frompyfunc(self.test_c_f_u,2,1)
+        J_pred_res = f(X,Y)
+        J_pred_res_u = f_u(X1, Y1)
         plt.contourf(X, Y, J_pred_res, 16, alpha=.75, cmap='jet')
         plt.colorbar()
         #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
         plt.title((title))
+        plt.show()
+        # 绘制横纵坐标为U的图
+        plt.contourf(X1, Y1, J_pred_res_u, 32, alpha=.75, cmap='jet')
+        plt.colorbar()
+        #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
+        plt.title((title+'-action'))
+        plt.scatter(act_list[:, 0],act_list[:, 1], marker='o', s=30, c='y')
         plt.show()
 
 

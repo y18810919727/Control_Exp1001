@@ -232,8 +232,8 @@ class HDP(ACBase):
         c = torch.index_select(state, 1, indices_c)
         nc = torch.index_select(next_state, 1, indices_c)
 
-        if (self.step-1) % 30 == 0:
-            self.test_critic_nn(title='round:'+str(self.step))
+        # if (self.step-1) % 30 == 0:
+        #     self.test_critic_nn(title='round:'+str(self.step))
 
 
         # region update model nn

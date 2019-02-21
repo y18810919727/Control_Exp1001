@@ -31,7 +31,7 @@ class OneRoundEvaluation():
 
     def plot_all(self):
         self.y_data.plt()
-        self.y_data.cal_mse()
+        mse_dict = self.y_data.cal_mse()
         self.u_data.plt()
         self.c_data.plt()
         self.d_data.plt()
@@ -39,3 +39,4 @@ class OneRoundEvaluation():
         #     x.plt()
 
         self.penalty_data.plt()
+        return mse_dict

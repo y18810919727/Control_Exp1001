@@ -83,6 +83,7 @@ class DataPackage:
             plt.show()
 
     def cal_mse(self):
+        mse_dict={}
         if "set point" not in self.data.keys():
             return
         for pic_id in range(1, self.size):
@@ -96,5 +97,11 @@ class DataPackage:
                 print("MSE\t%s\t%f"%(key, mean_squared_error(
                     set_point, values_array[:, pic_id]
                 )))
+                if self.value_name[pic_id] == 'Concentration(out)':
+                    mse_dict[key] = mean_squared_error(
+                    set_point, values_array[:, pic_id]
+                )
+        return mse_dict
+
 
 

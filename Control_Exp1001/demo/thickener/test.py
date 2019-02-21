@@ -1,17 +1,14 @@
-class A:
-    def __init__(self,
-                 a=1,
-                 b=2
-                 ):
-        self.a=a
-        self.b=b
+from matplotlib import pyplot as plt
 
+import numpy as np
 
-class B(A):
-    def __init__(self,**para):
-        super(B, self).__init__(**para)
+x,y = np.meshgrid(
+    np.linspace(0,1,10),
+    np.linspace(0,1,10)
+)
 
-
-if __name__ == '__main__':
-    t = B(a=1,b=7)
-    print(t.a, t.b)
+plt.contourf(x, y, x+y,  16, alpha=.75, cmap='jet')
+plt.colorbar()
+plt.scatter([0.4,0.1],[0.4,0.8], c='k',s=5)
+plt.legend(['11','22'])
+plt.show()

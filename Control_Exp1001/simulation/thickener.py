@@ -202,9 +202,9 @@ class Thickener(BaseEnv):
         if self.noise_type is None:
 
             if self.noise_in and np.random.uniform(0,1) < self.noise_p:
-                print('*'*20)
-                print('update c')
-                print('*'*20)
+                # print('*'*20)
+                # print('update c')
+                # print('*'*20)
                 c = np.random.multivariate_normal(mean=self.mean_c, cov=self.cov_c)
                 # 限制c的上下限
                 c = self.bound_detect(c, self.c_bounds)[2]
