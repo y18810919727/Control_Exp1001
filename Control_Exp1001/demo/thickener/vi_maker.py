@@ -17,8 +17,12 @@ from Control_Exp1001.common.action_noise.gaussian_noise import GaussianExplorati
 from Control_Exp1001.common.action_noise.no_exploration import No_Exploration
 from Control_Exp1001.common.replay.replay_buffer import ReplayBuffer
 
+
+# 生成vi控制器
 def new_vi(capacity=2,predict_round=3000):
     replay_vi = ReplayBuffer(capacity=capacity)
+
+    # !!! 这个浓密机只是为了训练预测模型产生数据用
     env_VI = Thickener(
         noise_p=0.03,
         noise_in=True,

@@ -98,7 +98,11 @@ class VI(ACBase):
         self.predict_training_rounds = predict_training_rounds
 
         self.device = None
+
+        # 没有用cuda
         self.cuda_device(gpu_id)
+
+        # 寻来拿critic网络的batchsize
         self.batch_size = batch_size
         self.predict_batch_size = predict_batch_size
 
@@ -176,8 +180,12 @@ class VI(ACBase):
         cuda = 'cuda:'+str(cuda_id)
         self.device = torch.device(cuda if use_cuda else "cpu")
 
+
+
+    # 根据仿真状态，计算动作
     def _act(self, state):
 
+        # 归一化
         y = self.normalize_y(state[self.indice_y])
         y_star = self.normalize_y(state[self.indice_y_star])
         c = self.normalize_c(state[self.indice_c])
@@ -321,27 +329,38 @@ class VI(ACBase):
 
         # region 使用torch自带优化器来求解最优act
 
+        # 生成一个迭代的起点
         act = torch.nn.Parameter(torch.rand((1,self.env.size_yudc[1])))
+
+        # 定义用于更新act的optimizer
         opt = torch.optim.Adam(params=[act], lr=0.1)
+
         while True:
+
+
             old_act = act.clone()
             diff_U = torch.FloatTensor(self.u_bounds[:,1]-self.u_bounds[:,0])
             det_u = torch.nn.functional.linear(input=act, weight=torch.diag(diff_U/2))
             # penalty_u = (det_u.mm(torch.FloatTensor(self.env.penalty_calculator.S)).mm(
             #     det_u.t()
             # )).diag().unsqueeze(dim=1)
+            # 利用torch框架计算效用函数中对u的惩罚，一会反向传播用
             penalty_u = (det_u.mm(torch.FloatTensor(self.env.penalty_calculator.S)).mm(
                 det_u.t()
             )).diag()
 
+            # 预测act情况下y(k+1)的变化
             y_pred = self.model_nn(torch.cat((y, act, c), dim=1))
+            # 根据critic网络预测J(k+1)
             J_pred = self.critic_nn(torch.cat((y_pred, y_star, c), dim=1))
             #penalty_u = torch.zeros(J_pred.shape)
             J_loss = penalty_u + self.gamma * J_pred
             J_loss = J_loss.mean()
+
             opt.zero_grad()
             J_loss.backward()
             opt.step()
+            # 限制act上下限为(-1， 1)
             act.data = torch.nn.Parameter(torch.clamp(act,min=-1,max=1)).data
             if torch.dist(act, old_act)<1e-4:
                 break
@@ -367,6 +386,7 @@ class VI(ACBase):
 
 
 
+        # 拟归一化为底流泵速和絮凝剂泵速
         A = np.matrix(np.diag(self.delta_u/2))
         B = np.matrix(self.mid_u).T
         act = A*np.matrix(act).T + B
@@ -547,7 +567,6 @@ class VI(ACBase):
                 self.env.reset()
         real_y_array = np.array(real_y_list)
         pred_y_array = np.array(pred_y_list)
-
         for i in range(self.env.size_yudc[0]):
             plt.plot(np.arange(real_y_array.shape[0]), real_y_array[:,i], 'o-')
 

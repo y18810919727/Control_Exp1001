@@ -304,10 +304,17 @@ class HDP(ACBase):
             J_loss = J_loss.mean()
             self.actor_nn_optim.zero_grad()
             #action.requires_grad = True
+
+
+            ##############这快是用来输出梯度的##############
+            # region
             global u_grad
             global y_pred_grad
             y_pred.register_hook(self.y_grad_cal)
             action.register_hook(self.u_grad_cal)
+            # endregion
+            ############################
+
             J_loss.backward()
             self.actor_nn_optim.step()
 
@@ -316,8 +323,10 @@ class HDP(ACBase):
             # if abs(J_loss-last_J) < self.actor_nn_error_limit:
             #     break
             last_J = float(J_loss)
+            # 定义训练终点
             if J_loss < 1e-4:
                 break
+            # 防止迭代次数太多，设一个上限
             if loop_time > 100:
                 break
             # endregion

@@ -16,12 +16,14 @@ from Control_Exp1001.demo.thickener.one_round_evaluation import OneRoundEvaluati
 from Control_Exp1001.demo.thickener.adhdp_make import adhdp
 import random
 from Control_Exp1001.common.replay.replay_buffer import ReplayBuffer
+# 效用函数参数
 penalty_para = {
     #"weight_matrix": [0, 0.002],
     "weight_matrix": [0, 0.004],
     #"S": [0.00001, 0.00008],
     "S": [0.0001, 0.0008]
 }
+# 仿真过程浓密机参数
 thickner_para = {
     "dt":1,
     "noise_in": False,
@@ -227,6 +229,9 @@ def vi_test():
     eval_res = OneRoundEvaluation(res_list=res_list)
     eval_res.plot_all()
 
+
+
+# 比较模型网络有无采样情况下控制性能影响
 def vi_compare_sample():
     exp_round = 1
     res_list = []
@@ -247,6 +252,9 @@ def vi_compare_sample():
     eval_res = OneRoundEvaluation(res_list=res_list)
     eval_res.plot_all()
 
+
+
+# 比较不同回放样本数对性能影响
 def vi_diff_capacity():
 
 
