@@ -60,7 +60,8 @@ class VI(ACBase):
                  hidden_model = 10,
                  hidden_critic = 14,
                  hidden_actor = 10,
-                 predict_epoch = 35
+                 predict_epoch = 35,
+                 u_optim='adam',
 
                  ):
         """
@@ -167,6 +168,9 @@ class VI(ACBase):
         self.S = torch.FloatTensor(self.env.penalty_calculator.S)
         self.u_grad = torch.zeros((1, 2))
         self.y_grad = torch.zeros((1, 2))
+        self.u_optim = u_optim
+        self.u_iter_times = 0
+        self.log_y = []
 
 
 
@@ -322,7 +326,15 @@ class VI(ACBase):
         # region 使用torch自带优化器来求解最优act
 
         act = torch.nn.Parameter(2*torch.rand((1,self.env.size_yudc[1]))-1)
-        opt = torch.optim.Adam(params=[act], lr=0.1)
+        if self.u_optim is "adam":
+            opt = torch.optim.Adam(params=[act], lr=0.1)
+        elif self.u_optim is 'sgd':
+            opt = torch.optim.SGD(params=[act], lr=0.4)
+        elif self.u_optim is 'RMSprop':
+            opt = torch.optim.RMSprop(params=[act], lr=0.01)
+        elif self.u_optim is 'adagrad':
+            opt = torch.optim.Adagrad(params=[act], lr=0.1)
+
         act_begin = np.copy(act.data.numpy()).squeeze()
         act_list = []
         act_list.append(np.copy(act.data.numpy()).squeeze())
@@ -337,6 +349,7 @@ class VI(ACBase):
                 det_u.t()
             )).diag()
 
+            y.requires_grad=True
             y_pred = self.model_nn(torch.cat((y, act, c), dim=1))
             J_pred = self.critic_nn(torch.cat((y_pred, y_star, c), dim=1))
             #penalty_u = torch.zeros(J_pred.shape)
@@ -347,6 +360,7 @@ class VI(ACBase):
             opt.step()
             act.data = torch.nn.Parameter(torch.clamp(act,min=-1,max=1)).data
             act_list.append(np.copy(act.data.numpy()).squeeze())
+            self.u_iter_times += 1
             if torch.dist(act, old_act)<1e-4:
                 break
 
@@ -375,6 +389,8 @@ class VI(ACBase):
 
         # if (self.step-1) % 20  == 0:
         #     self.test_critic_nn(title='round:'+str(self.step), cur_state=y, act_list=act_list)
+        # if 195<self.step-1<220:
+        #     self.test_critic_nn(title='round:'+str(self.step), cur_state=y, act_list=act_list)
 
         return act
 
@@ -382,6 +398,7 @@ class VI(ACBase):
 
     def _train(self, s, u, ns, r, done):
 
+        #print(r)
         # 先放回放池
         self.replay_buffer.push(s, u, r, ns, done)
         # if len(self.replay_buffer) < self.batch_size:
@@ -412,9 +429,13 @@ class VI(ACBase):
 
         c = torch.index_select(state, 1, indices_c)
         nc = torch.index_select(next_state, 1, indices_c)
+        self.log_y.append(y.clone().numpy()[-1,:])
+        self.y_grad_arrow = None
 
 
 
+        # if 0<self.step-1<1000 and self.step%1==0:
+        #     self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
         # region update model nn
         # while True:
         #
@@ -434,6 +455,7 @@ class VI(ACBase):
         last_J = np.inf
         # region update critic nn
         while True:
+            y.requires_grad = True
             q_value = self.critic_nn(torch.cat((y, y_star, c), dim=1))
 
 
@@ -445,12 +467,15 @@ class VI(ACBase):
             loop_time += 1
             # 定义TD loss
             critic_loss = self.critic_criterion(q_value, Variable(target_q.data))
+            #critic_loss = self.critic_criterion(q_value, target_q)
 
 
             target_q.register_hook(lambda grad:print(grad))
             self.critic_nn_optim.zero_grad()
             critic_loss.backward()
             self.critic_nn_optim.step()
+            self.y_grad_arrow = np.copy(y.grad.data.numpy()[-1])
+            y.grad.data = torch.zeros(y.grad.data.shape)
             if loop_time >= 1000:
                 break
 
@@ -458,6 +483,9 @@ class VI(ACBase):
                 break
             # endregion
         # print('step:',self.step, 'critic loop',loop_time)
+
+        if 0<self.step-1<1000 and self.step%40==0:
+            self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
 
 
 
@@ -689,7 +717,7 @@ class VI(ACBase):
         # print(mse_array)
 
     def test_c_f(self,y1,y2):
-        y = self.normalize_y(np.array([y1, y2]))
+        y = np.array([y1, y2])
 
         if self.step<200:
             c = self.normalize_c(np.array([40, 73]))
@@ -718,6 +746,7 @@ class VI(ACBase):
             c = self.normalize_c(np.array([35, 65]))
         c=torch.FloatTensor([c])
         y = self.sstate
+        y= y.squeeze().unsqueeze(0)
         y_star = self.normalize_y([1.48, 680])
         y_star = torch.FloatTensor([y_star])
         y_pred = self.model_nn(torch.cat((y, act, c), dim=1))
@@ -744,20 +773,87 @@ class VI(ACBase):
         f = np.frompyfunc(self.test_c_f,2,1)
         self.sstate = cur_state
         f_u = np.frompyfunc(self.test_c_f_u,2,1)
-        J_pred_res = f(X,Y)
+        J_pred_res = f(X1,Y1)
         J_pred_res_u = f_u(X1, Y1)
-        plt.contourf(X, Y, J_pred_res, 16, alpha=.75, cmap='jet')
+        fig = plt.figure()
+        plt.contourf(X1, Y1, J_pred_res, 40, alpha=.75, cmap='jet')
+
         plt.colorbar()
         #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
         plt.title((title))
+
+
+
+        cor_list = ['k','g']
+        if len(self.replay_buffer)>1:
+            cor_list = ['orange','r']
+
+        tmp_log_y = np.array(self.log_y)
+        for i in range(min(len(tmp_log_y),2)):
+
+            plt.scatter(tmp_log_y[-1-i, 0], tmp_log_y[-1-i,1], s=40,
+                        c=cor_list[i],label='[h(k-'+str(i+1)+')' + ',y(k-'+str(i+1)+')]')
+        plt.legend()
+
+        plt.savefig('images/iters_trajectory/sum/'+str(self.batch_size)+'-'+str(self.step)+'.png')
         plt.show()
-        # 绘制横纵坐标为U的图
-        plt.contourf(X1, Y1, J_pred_res_u, 32, alpha=.75, cmap='jet')
-        plt.colorbar()
-        #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
-        plt.title((title+'-action'))
-        plt.scatter(act_list[:, 0],act_list[:, 1], marker='o', s=30, c='y')
-        plt.show()
+
+        ### 画一个y(k)梯度方向的箭头
+        # 效果太差了，难以掌握梯度大小，很多梯度方向不准确
+        # if not self.y_grad_arrow is None:
+        #     begin_point =tmp_log_y[-1]
+        #     arrow_norm = np.linalg.norm(self.y_grad_arrow)
+        #     new_norm = math.log(arrow_norm + 1)
+        #     ratio = new_norm/arrow_norm
+        #     end_point =tmp_log_y[-1]+self.y_grad_arrow * ratio
+        #     plt.annotate("", xy=(end_point[0], end_point[1]),
+        #                  xytext=(begin_point[0], begin_point[1]),
+        #                  arrowprops=dict(arrowstyle="->"))
+        #     self.y_grad_arrow = None
+        ########################
+
+
+        # 画迭代计算u的过程
+        # # 绘制横纵坐标为U的图
+        # plt.contourf(X1, Y1, J_pred_res_u, 32, alpha=.75, cmap='jet')
+        # plt.colorbar()
+        # #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
+        # plt.title((title+'-'+self.u_optim))
+        # for i in range(len(act_list)-1):
+        #     self.drawArrow1(act_list[i], act_list[i+1],fig,i)
+        # #plt.scatter(act_list[:, 0],act_list[:, 1], marker='o', s=30, c='y')
+        # plt.show()
+
+    def drawArrow1(self, A, B, fig,iter):
+        '''
+        Draws arrow on specified axis from (x, y) to (x + dx, y + dy).
+        Uses FancyArrow patch to construct the arrow.
+
+        The resulting arrow is affected by the axes aspect ratio and limits.
+        This may produce an arrow whose head is not square with its stem.
+        To create an arrow whose head is square with its stem, use annotate() for example:
+        Example:
+            ax.annotate("", xy=(0.5, 0.5), xytext=(0, 0),
+            arrowprops=dict(arrowstyle="->"))
+        '''
+        ax = plt.gca()
+        # fc: filling color
+        # ec: edge color
+
+        try:
+
+            if np.linalg.norm((A, B))<0.000001:
+                return
+            ax.arrow(A[0], A[1], B[0] - A[0], B[1] - A[1],
+                     length_includes_head=True,  # 增加的长度包含箭头部分
+                     head_width=0.05/(1+math.log(iter*0.2+1)), head_length=0.1/(1+math.log(iter+1)), fc='orange', )
+        except Exception as e:
+            print(e)
+
+
+
+        # 注意： 默认显示范围[0,1][0,1],需要单独设置图形范围，以便显示箭头
+
 
 
 

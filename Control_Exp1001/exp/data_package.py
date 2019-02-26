@@ -72,13 +72,15 @@ class DataPackage:
                 values_array = np.array(values)
                 legend_name.append(key)
                 line_color = 'k' if key=='set point' else None
-                plt.plot(values_array[:, pic_id], c=line_color)
+                x_array = np.arange(0, values_array.shape[0], 1)
+                plt.plot(2*x_array, values_array[:, pic_id], c=line_color)
 
             if not self.value_name[pic_id] == 'Concentration(In)' \
                     and not self.value_name[pic_id] == 'pulp speed(Feed In)':
                 plt.legend(legend_name)
 
             plt.title(self.value_name[pic_id])
+            plt.xlabel('time(minute)')
             plt.savefig('./images/'+str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
             plt.show()
 

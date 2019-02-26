@@ -138,12 +138,12 @@ def run_hdp_sample(rounds=1000,seed=random.randint(0,1000000)):
 
 
 def run_vi(rounds=1000,seed=random.randint(0,1000000),name='VI',capacity=2,
-           predict_round=3000):
+           predict_round=3000,u_optim='adam'):
 
     print('seed :',seed)
     torch.manual_seed(seed)
     from Control_Exp1001.demo.thickener.vi_maker import new_vi
-    vi = new_vi(capacity=capacity,predict_round=predict_round)
+    vi = new_vi(capacity=capacity,predict_round=predict_round,u_optim=u_optim)
     penalty = Quadratic(**penalty_para)
     env_vi = Thickener(
                     penalty_calculator=penalty,
@@ -152,7 +152,7 @@ def run_vi(rounds=1000,seed=random.randint(0,1000000),name='VI',capacity=2,
 
     mse_vi_pre.append(vi.con_predict_mse)
     res1 = OneRoundExp(controller=vi, env=env_vi,max_step=rounds, exp_name=name).run()
-
+    print(name,':',vi.u_iter_times*1.0/rounds)
 
     return res1
 
@@ -258,14 +258,18 @@ def vi_compare_sample():
     mse_vi_sample.append(mse_dict['VI_sample'])
 
 
-def vi_diff_capacity():
+def vi_diff_capacity(capacity_list=None):
 
+    if capacity_list is None:
+        capacity = range(1,12,3)
 
     predict_round=800
     res_list = []
-    for capacity in range(1,12,3):
+
+    rand_seed = np.random.randint(0,10000000)
+    rand_seed = 3309316
+    for capacity in capacity_list:
         round = 400
-        rand_seed = np.random.randint(0,10000000)
         res_list.append(run_vi(rounds=round,seed=rand_seed,capacity=capacity,
                                name='Replay: '+str(capacity),predict_round=predict_round))
     eval_res = OneRoundEvaluation(res_list=res_list)
@@ -306,6 +310,24 @@ def vi_compard_simple_multi_times():
     from scipy.stats import pearsonr
     print('pearson:', pearsonr(mse_vi_pre+mse_vi_sample_pre, mse_vi+mse_vi_sample))
 
+
+def vi_optim_compare():
+    exp_round = 1
+    res_list = []
+    predict_round=800
+    rand_seed = np.random.randint(0,10000000)
+
+    opt_list = [ 'adagrad','RMSprop', 'adam', 'sgd']
+    opt_list = [ 'adam', 'sgd']
+    for opt_name in opt_list:
+        round = 400
+        res_list.append(run_vi(rounds=round,seed=rand_seed, name='VI_'+opt_name,
+                                      predict_round=predict_round, u_optim=opt_name),)
+
+    eval_res = OneRoundEvaluation(res_list=res_list)
+    mse_dict = eval_res.plot_all()
+
+
 if __name__ == '__main__':
 
     # HDP算法单独运行
@@ -317,11 +339,14 @@ if __name__ == '__main__':
     # run_hdp_sample()
     # compare_hdp_hdpsample()
     # vi_diff_capacity()
-    for i in range(3):
-        vi_compare_sample()
-        #vi_compare_sample()
-        os.remove('training_data_800.json')
+    # for i in range(1):
+    #     vi_compare_hdp()
+    #     #vi_compare_sample()
+    #     os.remove('training_data_800.json')
 
+    # vi_compare_hdp()
+    # vi_optim_compare()
+    vi_diff_capacity(capacity_list=[1,2,5])
     # vi_compare_hdp()
 
 
