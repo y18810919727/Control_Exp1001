@@ -202,15 +202,22 @@ class Thickener(BaseEnv):
         if self.noise_type is None:
 
             if self.noise_in and np.random.uniform(0,1) < self.noise_p:
-                print('*'*20)
-                print('update c')
-                print('*'*20)
+                # print('*'*20)
+                # print('update c')
+                # print('*'*20)
                 c = np.random.multivariate_normal(mean=self.mean_c, cov=self.cov_c)
                 # 限制c的上下限
                 c = self.bound_detect(c, self.c_bounds)[2]
         elif self.noise_type == 1:
             if self.time_step == 200:
                 c = np.array([35, 65])
+        elif self.noise_type == 2:
+
+            np.random.seed(self.random_seed)
+            det_c_mean = (self.c_bounds[:, 0] + self.c_bounds[:, 1])/2 - c
+            c = c + np.random.multivariate_normal(mean=0.001*det_c_mean, cov=[[0.8,0],[0,0.8]])
+            self.random_seed = np.random.randint(0,int(1e9))
+            c = self.bound_detect(c, self.c_bounds)[2]
         return c
     # 用那个常微分工具，不能直接在args中写**dict,建立一个中转的静态方法
     @staticmethod
