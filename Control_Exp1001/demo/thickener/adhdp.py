@@ -55,6 +55,7 @@ class ADHDP(ACBase):
                  indice_c=None,
                  hidden_critic = 10,
                  hidden_actor = 10,
+                 max_iter_c= 30,
 
                  ):
         """
@@ -107,25 +108,23 @@ class ADHDP(ACBase):
 
         #定义actor网络相关
         self.actor_nn = nn.Sequential(
-            nn.Linear(2*dim_y+dim_c, hidden_actor, bias=False),
             nn.Tanh(),
-            nn.Linear(hidden_actor, dim_u),
+            nn.Linear(2*dim_y+dim_c, dim_u,bias=False),
             nn.Tanh(),
            # nn.Linear(dim_u, dim_u)
         )
 
-        self.actor_nn_optim = torch.optim.Adam(self.actor_nn.parameters(), lr=actor_nn_lr)
+        self.actor_nn_optim = torch.optim.SGD(self.actor_nn.parameters(), lr=actor_nn_lr)
 
 
 
         #定义critic网络相关:HDP
 
         self.critic_nn = nn.Sequential(
-            nn.Linear(dim_y+dim_y+dim_c+dim_u, hidden_critic, bias=False),
             nn.Tanh(),
-            nn.Linear(hidden_critic, 1),
+            nn.Linear(dim_y+dim_y+dim_c+dim_u, 1,bias=False),
         )
-        self.critic_nn_optim = torch.optim.Adam(self.critic_nn.parameters(), lr=critic_nn_lr)
+        self.critic_nn_optim = torch.optim.SGD(self.critic_nn.parameters(), lr=critic_nn_lr)
         self.critic_criterion = torch.nn.MSELoss()
 
 
@@ -141,6 +140,7 @@ class ADHDP(ACBase):
         self.indice_y_star = indice_y_star
         self.indice_c = [6, 7]
         self.indice_u = indice_u
+        self.max_iter_c = max_iter_c
 
     def cuda_device(self, cuda_id):
         use_cuda = torch.cuda.is_available()
@@ -155,7 +155,7 @@ class ADHDP(ACBase):
 
         x = torch.FloatTensor(np.hstack((y, y_star,c))).unsqueeze(0)
         act = self.actor_nn(x).detach().squeeze(0).numpy()
-
+        print('_act',act)
         # make the output action locate in bounds of constraint
         # U = (max - min)/2 * u + (max + min)/2
 
@@ -193,7 +193,6 @@ class ADHDP(ACBase):
     def update_model(self,state, action, penalty, next_state, done):
 
         tmp_state = np.copy(state)
-
         state = torch.FloatTensor(self.normalize_state(state)).to(self.device)
         next_state = torch.FloatTensor(self.normalize_state(next_state)).to(self.device)
         action = torch.FloatTensor(self.normalize_u(action)).to(self.device)
@@ -235,8 +234,8 @@ class ADHDP(ACBase):
         while True:
             q_value = self.critic_nn(torch.cat((y, y_star, c, action), dim=1))
 
-
-            next_q_value = self.critic_nn(torch.cat((ny, y_star, nc, action), dim=1))
+            next_action = self.actor_nn(torch.cat([ny,y_star,c],dim=1))
+            next_q_value = self.critic_nn(torch.cat((ny, y_star, nc, next_action), dim=1))
             target_q = penalty + self.gamma * next_q_value
             #print(target_q)
 
@@ -254,38 +253,67 @@ class ADHDP(ACBase):
             loop_time += 1
             if critic_loss < self.critic_nn_error_limit:
                 break
-            if loop_time > 1000:
+            if loop_time >= self.max_iter_c:
                 break
 
         # endregion
         print('step:',self.step, 'critic loop',loop_time)
+        act_list2 = action.clone().detach().numpy()
+        print('train_critic', act_list2[-1])
+        self.draw_uk_Jk(
+            y=y[-1:, ],
+            y_star=y_star[-1:, ],
+            c=c[-1:, ],
+            nc=nc[-1:, ],
+            title='critic-Rounds-' + str(self.step),
+            act_list=act_list2
+        )
 
+
+        act_list = []
         loop_time = 0
         while True:
-
+            # if self.step%10 != 0:
+            #     break
             # region update actor nn
-            # y(k+1) = f(y(k),u(k),c(k))
-            action = self.actor_nn(torch.cat([y,y_star,c],dim=1))
+            action = self.actor_nn(torch.cat([ny,y_star,nc],dim=1))
+            act_list.append(action.clone().detach().numpy()[-1])
             # J(k+1) = U(k)+J(y(k+1),c)
-            J_pred = self.critic_nn(torch.cat((y, y_star, nc, action), dim=1))
+            J_pred = self.critic_nn(torch.cat((ny, y_star, nc, action), dim=1))
             J_loss = J_pred.mean()
-            self.actor_nn_optim.zero_grad()
+
             #action.requires_grad = True
             global u_grad
             action.register_hook(self.u_grad_cal)
+
+            self.actor_nn_optim.zero_grad()
             J_loss.backward()
             self.actor_nn_optim.step()
 
-            #print('critic loss', critic_loss)
+            #print('critic loss', critic_loss)`
             loop_time += 1
-            if abs(J_loss-last_J) < self.actor_nn_error_limit:
-                break
+            # if abs(J_loss-last_J) < self.actor_nn_error_limit:
+            #     break
             last_J = float(J_loss)
-            if loop_time > 5:
+            if J_loss < 1e-4:
+                break
+            if loop_time > 10:
                 break
             # endregion
 
-        print('step:',self.step, 'act loop',loop_time)
+        self.draw_uk_Jk(
+            y=y[-1:,],
+            y_star=y_star[-1:,],
+            c=c[-1:,],
+            nc=nc[-1:,],
+            title='Rounds-'+str(self.step),
+            act_list=act_list
+        )
+        print('train_actor', act_list[-1])
+
+
+
+        #print('step:',self.step, 'act loop',loop_time)
 
     def u_grad_cal(self, grad):
         global u_grad
@@ -297,8 +325,8 @@ class ADHDP(ACBase):
 
 
     def normalize_u(self, u):
-        u_max = self.u_bounds[:, 0]
-        u_min = self.u_bounds[:, 1]
+        u_max = self.u_bounds[:, 1]
+        u_min = self.u_bounds[:, 0]
         new_u = 2*(u- u_min)/(u_max-u_min) - 1
         return new_u
 
@@ -321,35 +349,62 @@ class ADHDP(ACBase):
 
 
 
-        # # 最后再评估一次
-        # mse_list.append(self.cal_predict_mse())
-        # # 绘制损失变化
-        # plt.figure()
-        #
-        # plt.title("Loss in various epoch")
-        # plt.xlabel("Epochs")
-        # plt.ylabel("Loss")
-        # plt.plot(self.predict_training_losses)
-        # plt.show()
-        #
-        #
-        # # 绘制预测mse变化
-        # plt.figure()
-        # mse_array = np.array(mse_list)
-        # for i in range(mse_array.shape[1]):
-        #     plt.plot(mse_array[:,i])
-        #     plt.plot(mse_array[:,i])
-        # plt.legend(['y1','y2'])
-        # plt.show()
-        # # 打印mse
+    def draw_uk_Jk(self, y, y_star, c, nc, title, act_list):
+
+        if self.step%5 !=0:
+            return
+        action = self.actor_nn(torch.cat([y, y_star, c], dim=1))
+
+        # J(k+1) = U(k)+J(y(k+1),c)
+        X, Y = np.meshgrid(
+            np.linspace(-1,1,30),
+            np.linspace(-1,1,30)
+        )
+        J_pred = self.critic_nn(torch.cat((y, y_star, nc, action), dim=1))
+        cal_uk_Jk = lambda u1,u2:float(self.critic_nn(torch.cat((y, y_star, nc, torch.FloatTensor([[u1,u2]])
+                                                                 ), dim=1)))
+        f = np.frompyfunc(cal_uk_Jk, 2, 1)
+        J_pred_res = f(X, Y)
+        fig = plt.figure()
+        plt.contourf(X, Y, J_pred_res, 16, alpha=.75, cmap='jet')
+        plt.colorbar()
+        act_array = np.array(act_list)
+        plt.scatter(act_array[:,0], act_array[:, 1])
+        ### 画每step一次，actor网络新输出的action
+        for i in range(len(act_list)-1):
+            self.drawArrow1(act_list[i], act_list[i+1],fig,i)
+        #plt.scatter(act_list[:, 0],act_list[:, 1], marker='o', s=30, c='y')
+
+        # C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
+        plt.title(title)
+        plt.show()
         # print(mse_array)
 
+    def drawArrow1(self, A, B, fig,iter):
+        '''
+        Draws arrow on specified axis from (x, y) to (x + dx, y + dy).
+        Uses FancyArrow patch to construct the arrow.
 
+        The resulting arrow is affected by the axes aspect ratio and limits.
+        This may produce an arrow whose head is not square with its stem.
+        To create an arrow whose head is square with its stem, use annotate() for example:
+        Example:
+            ax.annotate("", xy=(0.5, 0.5), xytext=(0, 0),
+            arrowprops=dict(arrowstyle="->"))
+        '''
+        ax = plt.gca()
+        # fc: filling color
+        # ec: edge color
 
+        try:
 
-
-
-
+            if np.linalg.norm((A, B))<0.000001:
+                return
+            ax.arrow(A[0], A[1], B[0] - A[0], B[1] - A[1],
+                     length_includes_head=True,  # 增加的长度包含箭头部分
+                     head_width=0.05/(1+math.log(iter*0.2+1)), head_length=0.1/(1+math.log(iter+1)), fc='orange', )
+        except Exception as e:
+            print(e)
 
 if __name__ == '__main__':
 
