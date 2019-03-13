@@ -10,7 +10,9 @@ from Control_Exp1001.exp.data_package import DataPackage
 class OneRoundExp:
     def __init__(self, env=None, controller=None,
                  max_step=1000,
-                 exp_name=None):
+                 exp_name=None,
+                 act_period=6,
+                 ):
         """
 
         :param env:
@@ -29,6 +31,7 @@ class OneRoundExp:
         if exp_name is None:
             exp_name = "None"
         self.exp_name = exp_name
+        self.act_period = act_period
 
     def add_log(self, key, value):
         self.log[key] = value
@@ -63,12 +66,16 @@ class OneRoundExp:
 
         for step in range(self.max_step):
 
-            # 控制器计算策略
-            action = self.controller.act(state)
+            if step % self.act_period == 0:
+                # 控制器计算策略
+                action = self.controller.act(state)
             # 仿真环境进行反馈
             next_state, r, done, _ = self.env.step(action)
             # 训练模型
-            self.controller.train(state, action, next_state, r, done)
+
+            if step % self.act_period == 0:
+            # 控制器计算策略
+                self.controller.train(state, action, next_state, r, done)
             state = next_state
 
             # 记录单步惩罚
@@ -80,10 +87,6 @@ class OneRoundExp:
             u_data.push(self.env.u)
             c_data.push(self.env.c)
             d_data.push(self.env.d)
-            u0_grad_data.push(float(self.controller.u_grad[-1][0]))
-            u1_grad_data.push(float(self.controller.u_grad[-1][1]))
-            y0_grad_data.push(float(self.controller.y_grad[-1][0]))
-            y1_grad_data.push(float(self.controller.y_grad[-1][1]))
             self.log = {}
             self.add_log("step", step)
             if self.render_mode:

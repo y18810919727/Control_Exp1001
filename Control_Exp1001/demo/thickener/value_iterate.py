@@ -434,8 +434,7 @@ class VI(ACBase):
 
 
 
-        # if 0<self.step-1<1000 and self.step%1==0:
-        #     self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
+        self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
         # region update model nn
         # while True:
         #
@@ -482,10 +481,9 @@ class VI(ACBase):
             if critic_loss < self.critic_nn_error_limit:
                 break
             # endregion
-        # print('step:',self.step, 'critic loop',loop_time)
+        print('step:',self.step, 'critic loop',loop_time)
 
-        if 0<self.step-1<1000 and self.step%40==0:
-            self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
+        self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
 
 
 
@@ -756,6 +754,12 @@ class VI(ACBase):
         return float(J_loss)
 
     def test_critic_nn(self,cur_state=None, title="None",act_list=None):
+
+        if not 0<self.step-1<1000:
+            return
+        if not self.step %10000==0:
+            return
+
         act_list = np.array(act_list)
         if act_list is None:
             act_list=[]

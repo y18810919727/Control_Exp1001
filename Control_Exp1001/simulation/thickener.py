@@ -209,7 +209,7 @@ class Thickener(BaseEnv):
                 # 限制c的上下限
                 c = self.bound_detect(c, self.c_bounds)[2]
         elif self.noise_type == 1:
-            if self.time_step == 200:
+            if self.time_step == 400:
                 c = np.array([35, 65])
         elif self.noise_type == 2:
 
