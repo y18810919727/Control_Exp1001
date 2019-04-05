@@ -42,11 +42,12 @@ class Thickener(BaseEnv):
         :param u_low:
         :param u_high:
         :param normalize:
-        :param time_length: 默认一次仿真60秒
+        :param time_length: 默认一次仿真120秒
         :param one_step_length:
         :param y_name: 默认泥层高度和 底流浓度
         :param c_name: 默认进料泵速和进料单位体积含固量密度
         :param y_star:
+        :param noise_type: 1:第400次突变2:随机波动噪音，3：1600时突变
         """
         if size_yudc is None:
             size_yudc = [2, 2, 0, 2]
@@ -110,7 +111,8 @@ class Thickener(BaseEnv):
         )
 
         if y_star is None:
-            y_star = np.array([1.48, 680], dtype=float)
+            #y_star = np.array([1.48, 680], dtype=float)
+            y_star = np.array([1.48, 690], dtype=float)
         self.y_star = np.array(y_star)
 
 
@@ -218,6 +220,10 @@ class Thickener(BaseEnv):
             c = c + np.random.multivariate_normal(mean=0.001*det_c_mean, cov=[[0.8,0],[0,0.8]])
             self.random_seed = np.random.randint(0,int(1e9))
             c = self.bound_detect(c, self.c_bounds)[2]
+
+        elif self.noise_type == 3:
+            if self.time_step == 1600:
+                c = np.array([35, 65])
         return c
     # 用那个常微分工具，不能直接在args中写**dict,建立一个中转的静态方法
     @staticmethod

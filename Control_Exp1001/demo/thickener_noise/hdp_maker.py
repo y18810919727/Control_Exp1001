@@ -17,7 +17,7 @@ from Control_Exp1001.common.action_noise.gaussian_noise import GaussianExplorati
 from Control_Exp1001.common.action_noise.no_exploration import No_Exploration
 from Control_Exp1001.common.replay.replay_buffer import ReplayBuffer
 
-def new_hdp(predict_round=800):
+def new_hdp(predict_round=800, gamma=0.4):
     replay_hdp = ReplayBuffer(capacity=2)
     env_HDP = Thickener(
         noise_p=0.01,
@@ -33,7 +33,7 @@ def new_hdp(predict_round=800):
         exploration = exploration,
         env=env_HDP,
         predict_training_rounds=predict_round,
-        gamma=0.4,
+        gamma=gamma,
 
         batch_size = 2,
         predict_batch_size=32,

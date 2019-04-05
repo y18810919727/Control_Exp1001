@@ -79,12 +79,16 @@ def test_model_hidden():
 
 def run_hdp(rounds=1000,seed=random.randint(0,1000000),name='HDP', predict_round=800):
 
+
+    hdp_para={
+        'gamma':0.9
+    }
     print('seed :',seed)
     torch.manual_seed(seed)
     random.seed(seed)
     np.random.seed(seed)
     from Control_Exp1001.demo.thickener.hdp_maker import new_hdp
-    hdp = new_hdp(predict_round=predict_round)
+    hdp = new_hdp(predict_round=predict_round, **hdp_para)
     penalty = Quadratic(**penalty_para)
     env_hdp = Thickener(
                     penalty_calculator=penalty,

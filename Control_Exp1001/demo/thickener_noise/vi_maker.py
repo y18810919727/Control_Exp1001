@@ -33,7 +33,7 @@ def new_vi(capacity=2,predict_round=3000,u_optim='adam'):
         exploration = exploration,
         env=env_VI,
         predict_training_rounds=predict_round,
-        gamma=0.4,
+        gamma=,
 
         batch_size = capacity,
         predict_batch_size=32,

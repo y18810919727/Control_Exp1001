@@ -5,6 +5,7 @@ import collections
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 import numpy as np
+import os
 
 import copy
 
@@ -81,7 +82,9 @@ class DataPackage:
 
             plt.title(self.value_name[pic_id])
             plt.xlabel('time(minute)')
-            plt.savefig('./images/'+str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
+
+            img_root = os.path.join('./images/', exp_name) +'/'
+            plt.savefig(img_root + str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
             plt.show()
 
     def cal_mse(self):

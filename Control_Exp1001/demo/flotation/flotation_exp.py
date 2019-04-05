@@ -56,6 +56,7 @@ class FlotationExp(BaseExp):
         # 训练eval_cycle个round之后，进行一次模型评估
         eval_cycle = int(self.rounds/self.eval_rounds)
         frame = 0
+        self.env.reset()
         for round_i in range(self.rounds):
             #print(round_i)
 

@@ -17,7 +17,11 @@ from Control_Exp1001.common.action_noise.gaussian_noise import GaussianExplorati
 from Control_Exp1001.common.action_noise.no_exploration import No_Exploration
 from Control_Exp1001.common.replay.replay_buffer import ReplayBuffer
 
-def new_vi(capacity=2,predict_round=3000,u_optim='adam'):
+def new_vi():
+    capacity=2
+    predict_round=3000
+    u_optim='adam'
+    gamma=0.6
     replay_vi = ReplayBuffer(capacity=capacity)
     env_VI = Thickener(
         noise_p=0.03,
@@ -33,7 +37,7 @@ def new_vi(capacity=2,predict_round=3000,u_optim='adam'):
         exploration = exploration,
         env=env_VI,
         predict_training_rounds=predict_round,
-        gamma=0.4,
+        gamma=gamma,
 
         batch_size = capacity,
         predict_batch_size=32,
@@ -59,3 +63,4 @@ def new_vi(capacity=2,predict_round=3000,u_optim='adam'):
     vi.train_identification_model()
     vi.test_predict_model(test_rounds=100)
     return vi
+

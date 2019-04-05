@@ -361,6 +361,7 @@ class ILPL(ACBase):
 
         :return:
         """
+        self.env.reset()
 
         # 写在json里暂存，防止每次都靠仿真模型太慢
         json_path = "training_data_" + str(self.predict_training_rounds) + '.json'
