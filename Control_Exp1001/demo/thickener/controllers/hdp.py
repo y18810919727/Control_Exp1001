@@ -103,9 +103,6 @@ class HDP(ACBase):
         self.cuda_device(gpu_id)
         self.batch_size = batch_size
         self.predict_batch_size = predict_batch_size
-
-
-
         self.predict_training_losses = []
         self.model_nn = None
         self.model_nn_error_limit = model_nn_error_limit
@@ -114,10 +111,18 @@ class HDP(ACBase):
         self.u_grad = [0, 0]
         self.y_grad = [0, 0]
 
-
         dim_c = env.size_yudc[3]
         dim_y = env.size_yudc[0]
         dim_u = env.size_yudc[1]
+
+        self.critic_nn = nn.Sequential(
+            nn.Linear(dim_y+dim_y+dim_c, hidden_critic, bias=False),
+            nn.Tanh(),
+            nn.Linear(hidden_critic, 1),
+        )
+        self.critic_nn_optim = torch.optim.Adam(self.critic_nn.parameters(), lr=critic_nn_lr)
+        self.critic_criterion = torch.nn.MSELoss()
+
         # Train model neural network
         self.model_nn = nn.Sequential(
             nn.Linear(dim_y+dim_u+dim_c, hidden_model),
@@ -144,14 +149,6 @@ class HDP(ACBase):
 
         #定义critic网络相关:HDP
 
-        self.critic_nn = nn.Sequential(
-            nn.Linear(dim_y+dim_y+dim_c, hidden_critic, bias=False),
-            nn.Tanh(),
-            nn.Linear(hidden_critic, 1),
-        )
-        self.critic_nn_optim = torch.optim.Adam(self.critic_nn.parameters(), lr=critic_nn_lr)
-        self.critic_criterion = torch.nn.MSELoss()
-
 
         self.gamma = gamma
 
@@ -168,6 +165,7 @@ class HDP(ACBase):
         self.predict_epoch = predict_epoch
         self.Na=Na
         self.Nc=Nc
+        self.log_y=[]
 
 
 
@@ -176,7 +174,7 @@ class HDP(ACBase):
         cuda = 'cuda:'+str(cuda_id)
         self.device = torch.device(cuda if use_cuda else "cpu")
 
-    def _act(self, state):
+    def policy_act(self, state):
 
         y = self.normalize_y(state[self.indice_y])
         y_star = self.normalize_y(state[self.indice_y_star])
@@ -188,21 +186,20 @@ class HDP(ACBase):
         # make the output action locate in bounds of constraint
         # U = (max - min)/2 * u + (max + min)/2
 
+
+
+        # region 反归一化，从(-1,1)映射到(u_min,u_max)
         self.delta_u = self.env.u_bounds[:, 1] - self.env.u_bounds[:, 0]
         self.mid_u = np.mean(self.env.u_bounds, axis=1)
-
         A = np.matrix(np.diag(self.delta_u/2))
         B = np.matrix(self.mid_u).T
         act = A*np.matrix(act).T + B
         act = np.array(act).reshape(-1)
-        # self.actor_nn[-1].weight.data = torch.FloatTensor()
-        # self.actor_nn[-1].bias.data = torch.FloatTensor(self.mid_u)
-        # self.actor_nn[-1].weight.requires_grad = False
-        # self.actor_nn[-1].bias.requires_grad = False
+        # endregion
+
+        self.log_y.append(np.copy(y))
 
         return act
-
-
 
     def _train(self, s, u, ns, r, done):
 
@@ -262,16 +259,12 @@ class HDP(ACBase):
         while True:
             q_value = self.critic_nn(torch.cat((y, y_star, c), dim=1))
 
-
             next_q_value = self.critic_nn(torch.cat((ny, y_star, nc), dim=1))
             target_q = penalty + self.gamma * next_q_value
-            #print(target_q)
-
 
             loop_time += 1
             # 定义TD loss
-            critic_loss = self.critic_criterion(q_value, Variable(target_q.data))
-
+            critic_loss = self.critic_criterion(q_value, Variable(target_q.data)) #target_q的计算过程不在反向传播的计算图中
 
             target_q.register_hook(lambda grad:print(grad))
             self.critic_nn_optim.zero_grad()
@@ -282,9 +275,8 @@ class HDP(ACBase):
 
             if critic_loss < self.critic_nn_error_limit:
                 break
-            # endregion
-        print('step:',self.step, 'critic loop',loop_time)
-
+        # endregion
+        print('step:',self.step, 'critic loop', loop_time)
 
         loop_time = 0
         while True:
@@ -332,6 +324,7 @@ class HDP(ACBase):
     def u_grad_cal(self, grad):
         global u_grad
         self.u_grad = grad
+
     def y_grad_cal(self, grad):
         global y_pred_grad
         y_pred_grad = grad

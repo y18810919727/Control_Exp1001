@@ -22,5 +22,6 @@ class Quadratic(BasePenalty):
         res = a * W * a.T + u * S * u.T
         """
         penalty_u = float(det_u.dot(self.S).dot(det_u.T))
+        #penalty_u = penalty_u*penalty_u*penalty_u*100000
         res = float(tmp.dot(weight_matrix).dot(tmp.T)) + penalty_u
         return res

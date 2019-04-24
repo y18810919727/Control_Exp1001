@@ -59,9 +59,10 @@ class VI(ACBase):
                  hidden_critic = 14,
                  hidden_actor = 10,
                  predict_epoch = 35,
-                 u_optim='adam',
-                 img_path="None"
-
+                 Nc=500,
+                 u_optim='sgd',
+                 img_path="None",
+                 test_period=100
                  ):
         """
 
@@ -112,10 +113,21 @@ class VI(ACBase):
         self.u_grad = [0, 0]
         self.y_grad = [0, 0]
 
-
         dim_c = env.size_yudc[3]
         dim_y = env.size_yudc[0]
         dim_u = env.size_yudc[1]
+
+        # 定义critic网络相关:HDP
+
+        self.critic_nn = nn.Sequential(
+            nn.Linear(dim_y+dim_y+dim_c, hidden_critic, bias=False),
+            nn.Tanh(),
+            nn.Linear(hidden_critic, 1),
+        )
+
+        self.critic_nn_optim = torch.optim.Adam(self.critic_nn.parameters(), lr=critic_nn_lr)
+        self.critic_criterion = torch.nn.MSELoss()
+
         # Train model neural network
         self.model_nn = nn.Sequential(
             nn.Linear(dim_y+dim_u+dim_c, hidden_model),
@@ -126,30 +138,6 @@ class VI(ACBase):
         #self.train_identification_model()
 
         #mse = self.test_predict_model(test_rounds=400)
-
-        #定义actor网络相关
-        self.actor_nn = nn.Sequential(
-            nn.Linear(2*dim_y+dim_c, hidden_actor, bias=False),
-            nn.Tanh(),
-            nn.Linear(hidden_actor, dim_u),
-            nn.Tanh(),
-           # nn.Linear(dim_u, dim_u)
-        )
-
-        self.actor_nn_optim = torch.optim.Adam(self.actor_nn.parameters(), lr=actor_nn_lr)
-
-
-
-        #定义critic网络相关:HDP
-
-        self.critic_nn = nn.Sequential(
-            nn.Linear(dim_y+dim_y+dim_c, hidden_critic, bias=False),
-            nn.Tanh(),
-            nn.Linear(hidden_critic, 1),
-        )
-        self.critic_nn_optim = torch.optim.Adam(self.critic_nn.parameters(), lr=critic_nn_lr)
-        self.critic_criterion = torch.nn.MSELoss()
-
 
         self.gamma = gamma
 
@@ -171,6 +159,8 @@ class VI(ACBase):
         self.u_iter_times = 0
         self.log_y = []
         self.img_path = img_path
+        self.Nc=Nc
+        self.test_period = test_period
 
 
 
@@ -329,7 +319,7 @@ class VI(ACBase):
         if self.u_optim is "adam":
             opt = torch.optim.Adam(params=[act], lr=0.1)
         elif self.u_optim is 'sgd':
-            opt = torch.optim.SGD(params=[act], lr=0.4)
+            opt = torch.optim.SGD(params=[act], lr=0.8)
         elif self.u_optim is 'RMSprop':
             opt = torch.optim.RMSprop(params=[act], lr=0.01)
         elif self.u_optim is 'adagrad':
@@ -337,6 +327,7 @@ class VI(ACBase):
 
         act_list = []
         act_list.append(np.copy(act.data.numpy()).squeeze())
+        self.u_iter_times=0
         while True:
             old_act = act.clone()
             diff_U = torch.FloatTensor(self.u_bounds[:,1]-self.u_bounds[:,0])
@@ -362,6 +353,10 @@ class VI(ACBase):
             self.u_iter_times += 1
             if torch.dist(act, old_act)<1e-4:
                 break
+            if self.u_iter_times>2000:
+                break
+
+        print('step:',self.step, 'find u loop', self.u_iter_times)
 
         act = act.detach().numpy()
 
@@ -474,7 +469,7 @@ class VI(ACBase):
             self.critic_nn_optim.step()
             self.y_grad_arrow = np.copy(y.grad.data.numpy()[-1])
             y.grad.data = torch.zeros(y.grad.data.shape)
-            if loop_time >= 1000:
+            if loop_time >= self.Nc:
                 break
 
             if critic_loss < self.critic_nn_error_limit:
@@ -753,12 +748,8 @@ class VI(ACBase):
         return float(J_loss)
 
     def test_critic_nn(self,cur_state=None, title="None",act_list=None):
-
-        if not 0<self.step-1<1000:
+        if not self.step % self.test_period == 0:
             return
-        if not self.step %10000==0:
-            return
-
         act_list = np.array(act_list)
         if act_list is None:
             act_list=[]
@@ -826,11 +817,11 @@ class VI(ACBase):
         # #C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
         # plt.title((title+'-'+self.u_optim))
         # for i in range(len(act_list)-1):
-        #     self.drawArrow1(act_list[i], act_list[i+1],fig,i)
+        #     self.draw_arrow(act_list[i], act_list[i+1],fig,i)
         # #plt.scatter(act_list[:, 0],act_list[:, 1], marker='o', s=30, c='y')
         # plt.show()
 
-    def drawArrow1(self, A, B, fig,iter):
+    def draw_arrow(self, A, B, fig,iter):
         '''
         Draws arrow on specified axis from (x, y) to (x + dx, y + dy).
         Uses FancyArrow patch to construct the arrow.

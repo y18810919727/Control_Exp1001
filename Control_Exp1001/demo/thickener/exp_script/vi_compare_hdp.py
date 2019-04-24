@@ -30,16 +30,19 @@ thickner_para = {
     "dt":1,
     "noise_in": False,
     "noise_p": 0.002,
-    "noise_type": 1,
+    "noise_type": 3,
     'time_length': 20,# 浓密机每次仿真20秒
 }
 from Control_Exp1001.demo.thickener.common import exp_name
 exp_name.set_exp_name('VIandHDP')
 EXP_NAME = exp_name.get_exp_name()
+img_path = os.path.join('../images',EXP_NAME)
+if not os.path.exists(img_path):
+    os.mkdir(img_path)
 def new_vi():
     capacity=2
     predict_round=3000
-    u_optim='adam'
+    u_optim='sgd'
     gamma=0.6
     replay_vi = ReplayBuffer(capacity=capacity)
     env_VI = Thickener(
@@ -66,7 +69,7 @@ def new_vi():
         actor_nn_error_limit = 0.001,
 
         actor_nn_lr = 0.005,
-        critic_nn_lr = 0.01,
+        critic_nn_lr = 0.02,
         model_nn_lr = 0.01,
 
         indice_y = None,
@@ -76,20 +79,21 @@ def new_vi():
         hidden_critic = 14,
         hidden_actor = 14,
         predict_epoch= 30,
+        Nc=500,
         u_optim=u_optim,
         img_path=EXP_NAME
     )
     env_VI.reset()
     vi.train_identification_model()
-    vi.test_predict_model(test_rounds=100)
+    #vi.test_predict_model(test_rounds=100)
     return vi
 
 def new_hdp():
-    predict_round=800
+    predict_round=3000
     gamma=0.6
     replay_hdp = ReplayBuffer(capacity=2)
     env_HDP = Thickener(
-        noise_p=0.01,
+        noise_p=0.03,
         noise_in=True,
     )
     exploration = No_Exploration()
@@ -113,7 +117,7 @@ def new_hdp():
 
         # 0.005
         actor_nn_lr = 0.003,
-        critic_nn_lr = 0.01,
+        critic_nn_lr = 0.02,
         model_nn_lr = 0.01,
 
         indice_y = None,
@@ -124,6 +128,7 @@ def new_hdp():
         hidden_actor = 14,
         predict_epoch= 30,
         Na=220,
+        Nc = 500,
         img_path=EXP_NAME
     )
     env_HDP.reset()
@@ -168,7 +173,7 @@ def run_hdp(rounds=1000,seed=random.randint(0,1000000),name='HDP', predict_round
 
 if __name__ == '__main__':
 
-    round = 800
+    round = 1600
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)

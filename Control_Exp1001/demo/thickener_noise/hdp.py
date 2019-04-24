@@ -59,7 +59,8 @@ class HDP(ACBase):
                  hidden_model = 10,
                  hidden_critic = 14,
                  hidden_actor = 10,
-                 predict_epoch = 35
+                 predict_epoch = 35,
+                 Nc = 500
 
                  ):
         """
@@ -163,6 +164,7 @@ class HDP(ACBase):
         self.indice_c = [6, 7]
         self.indice_u = indice_u
         self.predict_epoch = predict_epoch
+        self.Nc = Nc
 
 
 
@@ -272,7 +274,7 @@ class HDP(ACBase):
             self.critic_nn_optim.zero_grad()
             critic_loss.backward()
             self.critic_nn_optim.step()
-            if loop_time >= 1000:
+            if loop_time >= self.Nc:
                 break
 
             if critic_loss < self.critic_nn_error_limit:

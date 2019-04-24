@@ -29,7 +29,7 @@ import  mpl_toolkits.mplot3d as p3d
 from pylab import contourf
 from pylab import contour
 
-
+# 至今没有调通，感觉是二次型效用函数不适合ADHDP
 class ADHDP(ACBase):
     def __init__(self,
 
@@ -55,8 +55,11 @@ class ADHDP(ACBase):
                  indice_c=None,
                  hidden_critic = 10,
                  hidden_actor = 10,
-                 max_iter_c= 30,
-                 off_policy = False
+                 off_policy = False,
+                 Nc=500,
+                 Na=500,
+                 train_period=100,
+                 test_period=1,
                  ):
         """
 
@@ -108,8 +111,11 @@ class ADHDP(ACBase):
 
         #定义actor网络相关
         self.actor_nn = nn.Sequential(
-            nn.Tanh(),
-            nn.Linear(2*dim_y+dim_c, dim_u,bias=False),
+            nn.Linear(2*dim_y+dim_c, hidden_actor,bias=False),
+            #nn.Tanh(),
+            #nn.Sigmoid(),
+            nn.ReLU(),
+            nn.Linear(hidden_actor, dim_u,bias=False),
             nn.Tanh(),
            # nn.Linear(dim_u, dim_u)
         )
@@ -121,8 +127,10 @@ class ADHDP(ACBase):
         #定义critic网络相关:HDP
 
         self.critic_nn = nn.Sequential(
+            nn.Linear(dim_y+dim_y+dim_c+dim_u, hidden_critic,bias=False),
             nn.Tanh(),
-            nn.Linear(dim_y+dim_y+dim_c+dim_u, 1,bias=False),
+            #nn.ReLU(),
+            nn.Linear(hidden_critic, 1,bias=False),
         )
         self.critic_nn_optim = torch.optim.SGD(self.critic_nn.parameters(), lr=critic_nn_lr)
         self.critic_criterion = torch.nn.MSELoss()
@@ -140,23 +148,32 @@ class ADHDP(ACBase):
         self.indice_y_star = indice_y_star
         self.indice_c = [6, 7]
         self.indice_u = indice_u
-        self.max_iter_c = max_iter_c
         self.off_policy = off_policy
+        self.Nc=Nc
+        self.Na=Na
+        self.train_period = train_period
+        self.test_period = test_period
 
     def cuda_device(self, cuda_id):
         use_cuda = torch.cuda.is_available()
         cuda = 'cuda:'+str(cuda_id)
         self.device = torch.device(cuda if use_cuda else "cpu")
 
-    def _act(self, state):
+    def policy_act(self, state):
 
+        if self.step % 60 == 0:
+            print('?')
+            pass
         y = self.normalize_y(state[self.indice_y])
         y_star = self.normalize_y(state[self.indice_y_star])
         c = self.normalize_c(state[self.indice_c])
 
         x = torch.FloatTensor(np.hstack((y, y_star,c))).unsqueeze(0)
         act = self.actor_nn(x).detach().squeeze(0).numpy()
-        print('_act',act)
+        print(self.step)
+        print(x)
+        print(act)
+        #print('_act',act)
         # make the output action locate in bounds of constraint
         # U = (max - min)/2 * u + (max + min)/2
 
@@ -171,18 +188,21 @@ class ADHDP(ACBase):
         # self.actor_nn[-1].bias.data = torch.FloatTensor(self.mid_u)
         # self.actor_nn[-1].weight.requires_grad = False
         # self.actor_nn[-1].bias.requires_grad = False
+        print(act)
 
         return act
 
 
     def best_action(self, ny, y_star, nc):
 
-        begin_act = self.actor_nn(torch.cat([ny,y_star,nc],dim=1))
+
+
+        begin_act = self.actor_nn(torch.cat([ny,y_star,nc],dim=1)) #begin_act = torch.nn.Parameter(2*torch.rand((ny.shape[0],self.env.size_yudc[1]))-1)
 
         #next_q_value = self.critic_nn(torch.cat((ny, y_star, nc, next_action), dim=1))
 
         act = torch.nn.Parameter(begin_act)
-        opt = torch.optim.SGD(params=[act], lr=1.0)
+        opt = torch.optim.SGD(params=[act], lr=5)
 
         act_list = []
         act_list.append(np.copy(act.data.numpy()).squeeze())
@@ -192,14 +212,16 @@ class ADHDP(ACBase):
             old_act = act.clone()
 
             Q_loss = self.critic_nn(torch.cat((ny, y_star, nc, act), dim=1))
+            Q_loss = Q_loss.mean()
             #penalty_u = torch.zeros(J_pred.shape)
             opt.zero_grad()
-            Q_loss = Q_loss.mean()
             Q_loss.backward()
             opt.step()
             act.data = torch.nn.Parameter(torch.clamp(act,min=-1,max=1)).data
             act_list.append(np.copy(act.data.numpy()).squeeze())
             if torch.dist(act, old_act)<1e-4:
+                break
+            if find_loop_time > 100:
                 break
         print("find best action loop:", find_loop_time)
         return act
@@ -210,6 +232,9 @@ class ADHDP(ACBase):
         self.replay_buffer.push(s, u, r, ns, done)
         # if len(self.replay_buffer) < self.batch_size:
         #     return
+
+        if not self.step % self.train_period == 0:
+            return
         # 从回放池取数据，默认1条
         state, action, reward, next_state, done = self.replay_buffer.sample(
             # 尽快开始训练，而不能等batchsize满了再开始
@@ -217,9 +242,11 @@ class ADHDP(ACBase):
         )
 
         # 更新模型
+
         self.update_model(state, action, reward, next_state, done)
 
     def update_model(self,state, action, penalty, next_state, done):
+
 
         tmp_state = np.copy(state)
         state = torch.FloatTensor(self.normalize_state(state)).to(self.device)
@@ -255,14 +282,12 @@ class ADHDP(ACBase):
         # endregion
 
 
-        # 循环更新actor网络和critic网路
         loop_time = 0
         last_J = np.inf
         # region update critic nn
         loop_time = 0
         while True:
             q_value = self.critic_nn(torch.cat((y, y_star, c, action), dim=1))
-
             if self.off_policy:
                 next_action = self.best_action(ny, y_star, nc)
             else:
@@ -285,7 +310,7 @@ class ADHDP(ACBase):
             loop_time += 1
             if critic_loss < self.critic_nn_error_limit:
                 break
-            if loop_time >= self.max_iter_c:
+            if loop_time >= self.Nc:
                 break
 
         # endregion
@@ -303,47 +328,48 @@ class ADHDP(ACBase):
 
 
 
-        if self.step%1 == 1:
-            for param_group in self.actor_nn_optim.param_groups:
-                param_group['lr'] *= 1
-            act_list = []
-            loop_time = 0
-            while True:
-                # region update actor nn
-                action = self.actor_nn(torch.cat([ny,y_star,nc],dim=1))
-                act_list.append(action.clone().detach().numpy()[-1])
-                # J(k+1) = U(k)+J(y(k+1),c)
-                J_pred = self.critic_nn(torch.cat((ny, y_star, nc, action), dim=1))
-                J_loss = J_pred.mean()
+        act_list = []
+        loop_time = 0
+        while True:
+            # region update actor nn
+            action = self.actor_nn(torch.cat([y,y_star,c],dim=1))
 
-                #action.requires_grad = True
-                global u_grad
-                action.register_hook(self.u_grad_cal)
+            act_list.append(action.clone().detach().numpy()[-1])
+            # J(k+1) = U(k)+J(y(k+1),c)
 
-                self.actor_nn_optim.zero_grad()
-                J_loss.backward()
-                self.actor_nn_optim.step()
+            #y_pred = self.model_nn(torch.cat((y, action, c), dim=1))
+            J_pred = self.critic_nn(torch.cat((y, y_star, c, action), dim=1))
+            J_loss = J_pred
+            J_loss = J_loss.mean()
 
-                #print('critic loss', critic_loss)`
-                loop_time += 1
-                # if abs(J_loss-last_J) < self.actor_nn_error_limit:
-                #     break
-                last_J = float(J_loss)
-                if J_loss < 1e-4:
-                    break
-                if loop_time > 100:
-                    break
-                # endregion
+            #action.requires_grad = True
+            global u_grad
+            action.register_hook(self.u_grad_cal)
 
-            self.draw_uk_Jk(
-                y=y[-1:,],
-                y_star=y_star[-1:,],
-                c=c[-1:,],
-                nc=nc[-1:,],
-                title='Rounds-'+str(self.step),
-                act_list=act_list
-            )
-            #print('train_actor', act_list[-1])
+            self.actor_nn_optim.zero_grad()
+            J_loss.backward()
+            self.actor_nn_optim.step()
+
+            #print('critic loss', critic_loss)`
+            loop_time += 1
+            # if abs(J_loss-last_J) < self.actor_nn_error_limit:
+            #     break
+            last_J = float(J_loss)
+            if J_loss < 1e-4:
+                break
+            if loop_time > self.Na:
+                break
+            # endregion
+
+        self.draw_uk_Jk(
+            y=y[-1:,],
+            y_star=y_star[-1:,],
+            c=c[-1:,],
+            nc=nc[-1:,],
+            title='Rounds-'+str(self.step),
+            act_list=act_list
+        )
+        #print('train_actor', act_list[-1])
 
 
 
@@ -384,10 +410,10 @@ class ADHDP(ACBase):
 
 
     def draw_uk_Jk(self, y, y_star, c, nc, title, act_list):
-        return
-
-        if self.step%5 !=0:
+        if not self.step % self.test_period == 0 :
             return
+
+
         action = self.actor_nn(torch.cat([y, y_star, c], dim=1))
 
         # J(k+1) = U(k)+J(y(k+1),c)
@@ -412,6 +438,14 @@ class ADHDP(ACBase):
 
         # C = contour(X, Y, J_pred_list, 8, colors='black', linewidth=.5)
         plt.title(title)
+        if title.startswith('critic'):
+
+            root_path = os.path.join('../images/', 'VIandADHDP','u_in_critic')
+        else:
+            root_path = os.path.join('../images/', 'VIandADHDP','u_in_actor')
+        if not os.path.exists(root_path):
+            os.mkdir(root_path)
+        plt.savefig(os.path.join(root_path, str(self.batch_size)+'-'+str(self.step)+'.png'))
         plt.show()
         # print(mse_array)
 

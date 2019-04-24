@@ -3,6 +3,7 @@
 import pprint
 
 import numpy as np
+import time
 
 
 # 控制基础类
@@ -19,6 +20,9 @@ class ControlBase:
         self.u_bounds = u_bounds
         self.step_reset()
         self.render_mode = False
+        self.time_used = 0
+        self.act_time_used = 0
+        self.train_time_used= 0
 
     def add_log(self,key, value):
         self.log[str(key)] = value
@@ -35,7 +39,11 @@ class ControlBase:
         self.log = {}
         self.add_log("s", str(state))
 
+        time_begin = time.time()
         u = self._act(state)
+        time_end = time.time()
+        self.time_used += time_end-time_begin
+        self.act_time_used+=(time_end-time_begin)
 
         self.add_log("Type","act")
         self.add_log("u", u)
@@ -48,8 +56,13 @@ class ControlBase:
 
         self.log = {}
 
+        time_begin = time.time()
         self._train(s, u, ns, r, done)
+        time_end = time.time()
+        self.time_used += time_end - time_begin
+        self.train_time_used+=(time_end-time_begin)
         self.add_log("Type","train")
+
 
         if self.render_mode is True:
             self.render()

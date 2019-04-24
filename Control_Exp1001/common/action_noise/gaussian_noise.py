@@ -19,6 +19,9 @@ class GaussianExploration:
 
     def add_noise(self, actions, t=0):
         sigma = self.max_sigma - (self.max_sigma-self.min_sigma) * min(1.0,t/self.decay_period)
-        actions = actions + np.random.normal(size=len(actions))*sigma
+        noise = np.random.normal(size=len(actions))*sigma
+        noise = np.mat(noise).dot(np.diag(self.high-self.low))
+        noise = np.squeeze(np.array(noise),axis=0)
+        actions = actions + noise
         actions = np.clip(actions, self.low, self.high)
         return actions

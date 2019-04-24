@@ -111,8 +111,7 @@ class Thickener(BaseEnv):
         )
 
         if y_star is None:
-            #y_star = np.array([1.48, 680], dtype=float)
-            y_star = np.array([1.48, 690], dtype=float)
+            y_star = np.array([1.48, 680], dtype=float)
         self.y_star = np.array(y_star)
 
 
@@ -222,7 +221,7 @@ class Thickener(BaseEnv):
             c = self.bound_detect(c, self.c_bounds)[2]
 
         elif self.noise_type == 3:
-            if self.time_step == 1600:
+            if self.time_step == 800:
                 c = np.array([35, 65])
         return c
     # 用那个常微分工具，不能直接在args中写**dict,建立一个中转的静态方法
@@ -277,6 +276,10 @@ class Thickener(BaseEnv):
         d = wt * theta / A / (ca * ca)
 
         # 这个assert保证底流泵泵速增大时，底流浓度降低，泥层高度增加
+        # 如果这里不满足条件说明控制器把浓密机控制坏了
+        if not b > a * d:
+            raise ValueError()
+
         assert b > a * d
 
         y = c / (b - a * d)
