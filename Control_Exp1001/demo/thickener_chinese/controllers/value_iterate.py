@@ -357,7 +357,7 @@ class VI(ACBase):
             if self.u_iter_times>8000:
                 break
 
-        print('step:',self.step, 'find u loop', self.u_iter_times)
+        #print('step:',self.step, 'find u loop', self.u_iter_times)
 
         act = act.detach().numpy()
 
@@ -476,7 +476,7 @@ class VI(ACBase):
             if critic_loss < self.critic_nn_error_limit:
                 break
             # endregion
-        print('step:',self.step, 'critic loop',loop_time)
+        #print('step:',self.step, 'critic loop',loop_time)
 
         #self.test_critic_nn(title='round:'+str(self.step), cur_state=y[-1], act_list=None)
 
@@ -661,7 +661,7 @@ class VI(ACBase):
         # 训练预测模型
         for epoch in itertools.count():
 
-            print("Epoch:{}".format(epoch+1), "")
+            #print("Epoch:{}".format(epoch+1), "")
             sum_loss = 0
             for step,(batch_x, batch_y) in enumerate(loader):
                 b_x = Variable(batch_x)
@@ -676,7 +676,7 @@ class VI(ACBase):
                 sum_loss += loss.item()
 
 
-            print("Loss:{}".format(sum_loss))
+            #print("Loss:{}".format(sum_loss))
             # 每过20轮评估一次mse
             # if epoch % 20 == 0:
             #     mse_list.append(self.cal_predict_mse())

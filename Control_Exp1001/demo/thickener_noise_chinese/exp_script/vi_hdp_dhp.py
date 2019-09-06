@@ -246,11 +246,11 @@ def run_dhp(rounds=800,seed=random.randint(0,1000000),name='DHP',capacity=2,
 
 if __name__ == '__main__':
 
-    round = 1600
+    round = 1200
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)
-    #rand_seed = 9726164
+    # rand_seed = 9726164
     res_list.append(run_hdp(rounds=round,seed=rand_seed, name='HDP', predict_round=predict_round))
     res_list.append(run_dhp(rounds=round,seed=rand_seed, name='DHP', predict_round=predict_round))
     res_list.append(run_vi(rounds=round,seed=rand_seed, name='HCNVI', predict_round=predict_round))

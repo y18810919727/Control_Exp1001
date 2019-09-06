@@ -9,6 +9,7 @@ import os
 
 import copy
 
+
 class DataPackage:
     def __init__(self, exp_name=None, value_name=None, para=None):
         """
@@ -69,12 +70,21 @@ class DataPackage:
         fig = plt.figure(**para)
         for pic_id in range(self.size):
             legend_name = []
+
+            def color_list():
+                for col in ['y', 'purple', 'blue', 'red']:
+                    yield col
+            color_generator = color_list()
             for (key, values) in self.data.items():
                 values_array = np.array(values)
                 legend_name.append(key)
-                line_color = 'k' if key=='set point' else None
+                line_color = 'k' if key=='set point' else next(color_generator)
                 x_array = np.arange(0, values_array.shape[0], 1)
-                plt.plot(x_array/3, values_array[:, pic_id], c=line_color)
+
+                if line_color is 'k':
+                    plt.plot(x_array/3, values_array[:, pic_id], c=line_color,linewidth=4)
+                else:
+                    plt.plot(x_array/3, values_array[:, pic_id], c=line_color, linewidth=1)
 
             if not self.value_name[pic_id] == 'Concentration(In)' \
                     and not self.value_name[pic_id] == 'pulp speed(Feed In)':

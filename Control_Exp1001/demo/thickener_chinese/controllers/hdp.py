@@ -285,7 +285,7 @@ class HDP(ACBase):
             if critic_loss < self.critic_nn_error_limit:
                 break
             # endregion
-        print('step:',self.step, 'critic loop',loop_time)
+        # print('step:',self.step, 'critic loop',loop_time)
 
 
         loop_time = 0
@@ -329,7 +329,7 @@ class HDP(ACBase):
                 break
             # endregion
 
-        print('step:',self.step, 'actor loop',loop_time)
+        #print('step:',self.step, 'actor loop',loop_time)
 
     def u_grad_cal(self, grad):
         global u_grad
@@ -504,7 +504,7 @@ class HDP(ACBase):
         # 训练预测模型
         for epoch in itertools.count():
 
-            print("Epoch:{}".format(epoch+1), "")
+            #print("Epoch:{}".format(epoch+1), "")
             sum_loss = 0
             for step,(batch_x, batch_y) in enumerate(loader):
                 b_x = Variable(batch_x)
@@ -519,7 +519,7 @@ class HDP(ACBase):
                 sum_loss += loss.item()
 
 
-            print("Loss:{}".format(sum_loss))
+            #print("Loss:{}".format(sum_loss))
             # 每过20轮评估一次mse
             # if epoch % 20 == 0:
             #     mse_list.append(self.cal_predict_mse())

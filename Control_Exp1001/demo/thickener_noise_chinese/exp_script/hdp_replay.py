@@ -112,7 +112,7 @@ if __name__ == '__main__':
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)
-    rand_seed = 1202966
+    rand_seed = 9726164
     res_list.append(
         run_hdp(rounds=round,seed=rand_seed, name='HDP-无经验回放', predict_round=predict_round, capacity=1, batch_size=1))
     res_list.append(

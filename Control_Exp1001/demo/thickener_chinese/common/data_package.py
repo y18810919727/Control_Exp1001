@@ -9,10 +9,19 @@ font = {'family': 'STSong',
 matplotlib.rc("font", **font)
 from matplotlib import pyplot as plt
 from sklearn.metrics import mean_squared_error
+
+from Control_Exp1001.demo.thickener_chinese.common import exp_name
+
+from sklearn.metrics import mean_absolute_error
+
 import numpy as np
 import os
 
 import copy
+
+def max_absolute_error(a, b):
+    res = np.max(np.abs(a-b))
+    return res
 
 class DataPackage:
     def __init__(self, exp_name=None, value_name=None, para=None):
@@ -78,6 +87,29 @@ class DataPackage:
         s = s.replace('无经验回放', 'NoReplay')
         return s
 
+    def extend_array(self, data, ratio=0.02):
+        l = data.shape[0]
+        extend_len = int(l*ratio)
+        def tail_make(a, b, length):
+
+            extend_array = []
+            for i in range(length):
+                if len(extend_array)>=2:
+                    first = extend_array[-1]
+                    second = extend_array[-2]
+                elif len(extend_array) == 1:
+                    first = extend_array[-1]
+                    second = a
+                else:
+                    first = a
+                    second = b
+                extend_array.append(first*2 - second)
+            return extend_array
+        left_array = np.array(tail_make(data[0], data[1], extend_len))
+        right_array = np.array(tail_make(data[-1], data[-2], extend_len))
+        new_array = np.hstack((left_array, data, right_array))
+        return new_array
+
     def plt(self):
         if self.value_name is None:
             self.value_name = [str(i) for i in range(self.size)]
@@ -88,19 +120,37 @@ class DataPackage:
             raise ValueError('size of value_name and size are not match')
         para = copy.deepcopy(self.para)
         fig = plt.figure(**para)
+
         for pic_id in range(self.size):
             legend_name = []
+
+            def color_list():
+                for col in ['orange', 'dodgerblue', 'green', 'red']:
+                    yield col
+            color_generator = color_list()
             for (key, values) in self.data.items():
                 values_array = np.array(values)
                 legend_name.append(key)
-                line_color = 'k' if key=='设定值' else None
+                line_color = 'k' if key=='设定值' else next(color_generator)
                 x_array = np.arange(0, values_array.shape[0], 1)
-                plt.plot(x_array/3, values_array[:, pic_id], c=line_color)
+
+                if key == '设定值':
+                    plt.plot(self.extend_array(x_array/3),
+                             self.extend_array(values_array[:, pic_id]), c=line_color,linewidth=2)
+                else:
+                    plt.plot(x_array/3, values_array[:, pic_id], c=line_color, linewidth=2)
+
+                # if key == 'HCNVI':
+                #     plt.plot(x_array/3, values_array[:, pic_id], c=line_color,
+                #              marker='o',markevery=80,ms=3)
+                # else:
+                #     plt.plot(x_array/3, values_array[:, pic_id], c=line_color)
 
             if not self.value_name[pic_id] == '进料浓度' \
                     and not self.value_name[pic_id] == '进料泵速':
                 plt.legend(legend_name)
 
+            plt.grid()
             plt.title(self.value_name[pic_id])
             if '浓' in self.value_name[pic_id]:
                 plt.ylabel(r'$kg/m_3$')
@@ -108,7 +158,6 @@ class DataPackage:
             if '速' in self.value_name[pic_id]:
                 plt.ylabel(r'$Hz$')
             plt.xlabel('时间(分钟)')
-            from Control_Exp1001.demo.thickener_chinese.common import exp_name
             img_root = os.path.join('../images/', exp_name.get_exp_name()) +'/'
             img_name = str(self.value_name[pic_id])+'_'.join(legend_name)
             img_name = img_name.replace(' ', '_')
@@ -129,6 +178,14 @@ class DataPackage:
                 line_color = 'k' if key=='设定值' else None
                 plt.plot(values_array[:, pic_id], c=line_color)
                 print("MSE\t%s\t%f"%(key, mean_squared_error(
+                    set_point, values_array[:, pic_id]
+                )))
+
+                print("IAE\t%s\t%f"%(key, mean_absolute_error(
+                    set_point, values_array[:, pic_id]
+                )))
+
+                print("MAE\t%s\t%f"%(key, max_absolute_error(
                     set_point, values_array[:, pic_id]
                 )))
                 if self.value_name[pic_id] == '底流浓度':

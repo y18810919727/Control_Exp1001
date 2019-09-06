@@ -33,7 +33,7 @@ thickner_para = {
     "dt":1,
     "noise_in": False,
     "noise_p": 0.002,
-    "noise_type": 3,
+    "noise_type": 2,
     'time_length': 20,# 浓密机每次仿真20秒
 }
 from Control_Exp1001.demo.thickener.common import exp_name
@@ -243,7 +243,7 @@ if __name__ == '__main__':
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)
-    # rand_seed = 320743
+    rand_seed = 320743
     res_list.append(run_hdp(rounds=round,seed=rand_seed, name='HDP', predict_round=predict_round))
     res_list.append(run_dhp(rounds=round,seed=rand_seed, name='DHP', predict_round=predict_round))
     res_list.append(run_vi(rounds=round,seed=rand_seed, name='HCNVI', predict_round=predict_round))

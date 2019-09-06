@@ -44,7 +44,7 @@ def new_vi(capacity=2, batch_size=2):
     capacity = capacity
 
     predict_round=3000
-    u_optim='sgd'
+    u_optim='adam'
     gamma=0.6
     replay_vi = ReplayBuffer(capacity=capacity)
     env_VI = Thickener(
@@ -71,7 +71,7 @@ def new_vi(capacity=2, batch_size=2):
         actor_nn_error_limit = 0.001,
 
         actor_nn_lr = 0.005,
-        critic_nn_lr = 0.02,
+        critic_nn_lr = 0.01,
         model_nn_lr = 0.01,
 
         indice_y = None,
@@ -81,7 +81,7 @@ def new_vi(capacity=2, batch_size=2):
         hidden_critic = 14,
         hidden_actor = 14,
         predict_epoch= 30,
-        Nc=500,
+        Nc=1000,
         u_optim=u_optim,
         img_path=EXP_NAME
     )
@@ -97,10 +97,6 @@ def run_vi(rounds=1000,seed=random.randint(0,1000000),name='VI',capacity=2,batch
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-
-    vi_para = {
-        'gamma': 0.2
-    }
     vi = new_vi(capacity=capacity, batch_size=batch_size)
     penalty = Quadratic(**penalty_para)
     thickner_para['random_seed']=seed
@@ -120,11 +116,11 @@ if __name__ == '__main__':
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)
-    rand_seed = 3315143
+    rand_seed = 9726164
     res_list.append(
         run_vi(rounds=round,seed=rand_seed, name='HCNVI-无经验回放', predict_round=predict_round, capacity=1, batch_size=1))
     res_list.append(
-        run_vi(rounds=round,seed=rand_seed, name='HCNVI-经验回放大小为2', predict_round=predict_round, capacity=2, batch_size=2))
+        run_vi(rounds=round,seed=rand_seed, name='HCNVI-经验回放数量为2', predict_round=predict_round, capacity=2, batch_size=2))
     eval_res = OneRoundEvaluation(res_list=res_list)
     eval_res.plot_all()
 

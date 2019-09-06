@@ -248,7 +248,7 @@ def run_dhp(rounds=800,seed=random.randint(0,1000000),name='DHP',capacity=2,
 
 if __name__ == '__main__':
 
-    round = 1600
+    round = 1200
     predict_round=800
     res_list = []
     rand_seed = np.random.randint(0,10000000)

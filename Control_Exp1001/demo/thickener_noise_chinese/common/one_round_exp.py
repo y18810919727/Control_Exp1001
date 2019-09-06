@@ -5,9 +5,10 @@ import numpy as np
 
 from Control_Exp1001.demo.thickener_noise_chinese.common.data_package import DataPackage
 import matplotlib
-matplotlib.style.use('ggplot')
+#matplotlib.style.use('ggplot')
 from sklearn.metrics import mean_absolute_error as mae
 
+import pickle
 
 # 实验类：用于调度env和controller进行交互，并每隔一定的训练轮次(rounds)，对模型进行一次评估
 class OneRoundExp:
@@ -51,6 +52,18 @@ class OneRoundExp:
 
 
     def run(self):
+        import os
+        if os.path.exists(
+            os.path.join('..','result',self.exp_name)
+        ):
+            with open(
+                os.path.join('..','result',self.exp_name)
+            ,'rb') as f:
+                obj = pickle.load(f)
+            res = obj
+            return res
+
+
         state = self.env.reset()
         self.controller.step_reset()
         self.controller.env=self.env
@@ -97,5 +110,11 @@ class OneRoundExp:
         other_info['time_used'] =(self.controller.time_used, self.controller.train_time_used,
                                   self.controller.act_time_used)
         other_info['exp_name']=self.exp_name
-        return y_data, u_data, c_data, d_data, penalty_data, u0_grad_data, u1_grad_data, y0_grad_data, y1_grad_data, \
+        res = y_data, u_data, c_data, d_data, penalty_data, u0_grad_data, u1_grad_data, y0_grad_data, y1_grad_data, \
                other_info
+
+        with open(
+                os.path.join('..','result',self.exp_name)
+                ,'wb') as f:
+            pickle.dump(res, f)
+        return res
