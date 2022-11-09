@@ -53,7 +53,7 @@ class ACBase(ControlBase):
 
     def _act(self, state):
 
-        # 计算增加噪音之前的的策略
+        # 计算增加噪音之前的策略
         action_before_noise = self.policy_act(state)
         if self.train_mode:
 
@@ -64,10 +64,6 @@ class ACBase(ControlBase):
         self.add_log("Action (After adding noise)", action_after_noise)
         self.add_log("Action (Before adding noise)", action_before_noise)
         return action_after_noise
-
-
-
-
 
 
     # TODO save models list

@@ -136,7 +136,30 @@ class DataPackage:
                     plt.plot(self.extend_array(x_array/3),
                              self.extend_array(values_array[:, pic_id]), c=line_color,linewidth=2)
                 else:
-                    plt.plot(x_array/3, values_array[:, pic_id], c=line_color, linewidth=2)
+                    # 自动化学报要求黑白 为True代表画黑白图
+                    automatical = False
+
+                    if automatical:
+                        if key =='HDP':
+                            line_coefficient = 'k+-'
+                        elif key =='DHP':
+                            line_coefficient = 'kx-'
+                        elif key =='ILPL':
+                            line_coefficient = 'k^-'
+                        elif key =='HCNVI':
+                            line_coefficient = 'ko-'
+
+                        if key =='HCNVI':
+                            ms = 6
+                        else:
+                            ms = 3
+                        radio = 10
+                        x_index = np.arange(0, x_array.shape[0], 1)
+                        x_index = (x_index*radio)[:(x_array.shape[0]//radio)]
+                        plt.plot((x_array/3)[x_index], values_array[:, pic_id][x_index],line_coefficient, linewidth=1, ms=ms)
+                    else:
+                        plt.plot(x_array/3, values_array[:, pic_id], c=line_color, linewidth=2)
+                    #plt.plot(x_array/3, values_array[:, pic_id], c=line_color, linewidth=2)
 
                 # if key == 'HCNVI':
                 #     plt.plot(x_array/3, values_array[:, pic_id], c=line_color,

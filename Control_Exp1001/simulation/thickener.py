@@ -265,15 +265,18 @@ class Thickener(BaseEnv):
         cl = ki * qi * ci  # 泥层界面高度处的密度(kg/m^3)
         ca = p * (cl + cu)  # 泥层内平均密度
         wt = ci * qi  # 单位时间进入浓密机的固体质量
-        wt_out = cu * qu  # 单位时间进入浓密机的固体质量
-        r3 = rho_l * (1 / ca - 1 / rho_s)
+        # wt_out = cu * qu  # 单位时间浓密机排出的固体质量
+        r = rho_l / rho_s * (rho_s - ca) / ca
+
+        # print('ca = %f, r = %f' % (ca, r))
 
         # 定义中间计算变量， 具体含义参看文档
 
         a = ca
         b = ht
         c = cl * (ut + ur) - cu * ur
-        d = wt * theta / A / (ca * ca)
+        # d = wt * theta / A / (ca * ca)
+        d = wt * theta / A / rho_s * (-rho_s) / ca**2
 
         # 这个assert保证底流泵泵速增大时，底流浓度降低，泥层高度增加
         # 如果这里不满足条件说明控制器把浓密机控制坏了
@@ -282,8 +285,9 @@ class Thickener(BaseEnv):
 
         assert b > a * d
 
-        y = c / (b - a * d)
-        x = -d * y
+        # y = c / (b - a * d)
+        y = c / (b + a * d)
+        x = d * y
 
         grad_ca = y
         grad_ht = x
@@ -335,7 +339,7 @@ def debug_s():
 
 
 def debug_random():
-    simulation_test(Thickener, init_para={"noise_in": True}, mode="random", test_step=3000,
+    simulation_test(Thickener, init_para={"noise_in": True, 'noise_type': 2}, mode="random", test_step=3000,
                     eval_plt_param={"figsize": (15, 10)})
 
 
@@ -357,3 +361,6 @@ if __name__ == '__main__':
         # 随机策略，噪音输入
         elif sys.argv[1] == '-random':
             debug_random()
+    else:
+        debug_cy()
+

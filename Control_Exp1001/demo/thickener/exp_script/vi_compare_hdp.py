@@ -85,7 +85,7 @@ def new_vi():
     )
     env_VI.reset()
     vi.train_identification_model()
-    #vi.test_predict_model(test_rounds=100)
+    vi.test_predict_model(test_rounds=100)
     return vi
 
 def new_hdp():
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     rand_seed = np.random.randint(0,10000000)
     # rand_seed = 320743
     res_list.append(run_vi(rounds=round,seed=rand_seed, name='HCNVI', predict_round=predict_round))
-    res_list.append(run_hdp(rounds=round,seed=rand_seed, name='HDP', predict_round=predict_round))
+    #res_list.append(run_hdp(rounds=round,seed=rand_seed, name='HDP', predict_round=predict_round))
     eval_res = OneRoundEvaluation(res_list=res_list)
     eval_res.plot_all()
 

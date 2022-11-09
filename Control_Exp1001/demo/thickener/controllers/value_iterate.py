@@ -569,10 +569,10 @@ class VI(ACBase):
         self.con_predict_mse = mean_squared_error(real_y_array[:,1], pred_y_array[:,1])
 
         for i in range(self.env.size_yudc[0]):
-            plt.plot(np.arange(real_y_array.shape[0]), real_y_array[:,i], 'o-')
+            plt.plot(np.arange(real_y_array.shape[0]), real_y_array[:,i], 'o-', color='black')
 
-            plt.plot(np.arange(real_y_array.shape[0]),pred_y_array[:,i],'r.--', linewidth=0.7)
-            plt.legend(['Real Curve','Forecast Curve'])
+            plt.plot(np.arange(real_y_array.shape[0]),pred_y_array[:,i],'r.--',color='red', linewidth=0.7)
+            plt.legend(['真实值','预测值'])
             plt.title(self.env.y_name[i])
             plt.xlabel('')
 

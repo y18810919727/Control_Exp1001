@@ -71,8 +71,8 @@ class DataPackage:
             legend_name = []
             for (key, values) in self.data.items():
                 values_array = np.array(values)
+                line_color = 'k' if key == 'key' else None
                 legend_name.append(key)
-                line_color = 'k' if key=='set point' else None
                 x_array = np.arange(0, values_array.shape[0], 1)
                 plt.plot(2*x_array, values_array[:, pic_id], c=line_color)
 
@@ -83,8 +83,13 @@ class DataPackage:
             plt.title(self.value_name[pic_id])
             plt.xlabel('time(minute)')
 
-            img_root = os.path.join('./images/', exp_name) +'/'
-            plt.savefig(img_root + str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
+            img_root = os.path.join('./images/', self.exp_name) +'/'
+            try:
+                plt.savefig(img_root + str(self.value_name[pic_id])+'_'.join(legend_name)+'.png', dpi=300)
+            except FileNotFoundError:
+                print('Not given directory for saving images')
+                pass
+
             plt.show()
 
     def cal_mse(self):
